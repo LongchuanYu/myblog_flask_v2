@@ -3,4 +3,5 @@
 from flask import Blueprint
 bp = Blueprint('api',__name__)
 
-from app.api import ping
+#（？）末尾加入，这里怎么避免循环导入的？
+from app.api import ping,users
