@@ -24,3 +24,11 @@ class User(db.Model):
         if include_email:
             data['email'] = self.email
         return data
+    #data是客户端传来的json数据
+    def from_dict(self,data,new_user=False):
+        for field in ['username','email']:
+            if field in data:
+                #self指的是类实例对象本身
+                setattr(self,field,data[field])
+        if new_user and 'password' in data:
+            self.set_password(data['password'])
