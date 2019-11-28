@@ -41,11 +41,18 @@ def create_user():
 @bp.route('/users',methods=['GET'])
 def get_users():
     #返回用户集合
-    pass
+    #获取request中的'page',没找到返回1，强制转换成int型
+    page = request.args.get('page',1,type=int)
+    per_page=request.args.get('per_page',10,type=int)
+    data = User.query.paginate(page,per_page,False)
+    res = {
+        'items':[item.to_dict() for item in data.items]
+    }
+    return jsonify(res)
 @bp.route('/users/<int:id>',methods=['GET'])
 def get_user(id):
     #返回一个用户
-    pass
+    return jsonify(User.query.get_or_404(id).to_dict())
 
 @bp.route('/users/<int:id>', methods=['PUT'])
 def update_user(id):

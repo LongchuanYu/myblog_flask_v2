@@ -1,6 +1,34 @@
 from app import db
 from flask import url_for
 from werkzeug.security import generate_password_hash,check_password_hash
+
+class PaginatedAPIMixin(object):
+    #定义@staticmethod，可以不用实例化类，直接调用，比如：
+    #   PaginatedAPIMixin.to_collection_dict()
+    @staticmethod
+    def to_collection_dict(query,page,per_page,endpoint,**kwargs):
+        #获取全部数据的分页，详情请见flask-sqlalchemy文档
+        #   返回的是一个Paginate对象
+        resources = query.paginate(page,per_page,False)
+        data={
+            'items':[item.to_dict]
+        }
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class User(db.Model):
     id = db.Column(db.Integer,primary_key=True)
     #index为索引字段
