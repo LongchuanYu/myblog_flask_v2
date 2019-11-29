@@ -1,11 +1,7 @@
-from flask import jsonify
-class Test:
-    def say(self,msg):
-        print(msg)
-    def seta(self):
-        setattr(self,"hello","123")
-    def geta(self):
-        print(self.hello)
-t=Test()
-t.seta()
-t.geta()
+def hello():
+    print(1/0)
+try:
+    hello()
+except Exception as e:
+    print(isinstance(str(e),str))
+    print(e)

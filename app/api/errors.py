@@ -9,7 +9,8 @@ def error_response(status_code,message=None):
     payload = {
         'error':HTTP_STATUS_CODES.get(status_code,"Unknown error")
     }
-    #message是一个字典
+    #message是一个包含多个错误字段的字典,或者字符串
+    #   message将会拼接到payload中返回
     if message:
         payload['message']=message
     response = jsonify(payload)

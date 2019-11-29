@@ -12,6 +12,7 @@ def create_user():
     if not data:
         return bad_request('you must post Json data.')
     message={}
+    #先验证json有没有username属性，在验证username是否为空。
     if 'username' not in data or not data.get('username',None):
         message['username'] = 'Please provide a valid username'
     pattern =  '^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$'
@@ -44,11 +45,8 @@ def get_users():
     #获取request中的'page',没找到返回1，强制转换成int型
     page = request.args.get('page',1,type=int)
     per_page=request.args.get('per_page',10,type=int)
-    data = User.query.paginate(page,per_page,False)
-    res = {
-        'items':[item.to_dict() for item in data.items]
-    }
-    return jsonify(res)
+    data = User.to_collection_dict(User.query,page,per_page,'api.get_users')
+    return jsonify(data)
 @bp.route('/users/<int:id>',methods=['GET'])
 def get_user(id):
     #返回一个用户
@@ -56,9 +54,44 @@ def get_user(id):
 
 @bp.route('/users/<int:id>', methods=['PUT'])
 def update_user(id):
-    '''修改一个用户'''
-    pass
+    '''修改一个用户
+    @param {json} user:{
+        "username":"liyang",
+        "email":"liyang@qq.com",
+        #新建用户才有password，修改则没有password
+    }
+    @emit {json} user:{...}
+    '''
+    data = request.get_json()
+    user = User.query.get_or_404(id)
+    print(data)
+    if not data:
+        return bad_request('Json Required !')
+    message={}
+    pattern =  '^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$'
+    #验证json数据
+    if not 'username' in data or not data.get('username',None) :
+        message['username'] = "Invalid username"
+    if not 'email' in data or re.match(pattern,data.get('email',None)):
+        message['email'] = "Invalid email"
+    #查询修改后的用户不重复，才能修改
 
+    
+    if message:
+        return bad_request(message)
+
+    
+    #数据库接口
+    try:
+        user.from_dict(data)
+        db.session.commit()
+    except Exception as e:
+        return bad_request(str(e))
+    
+
+    #修改完成后返回修改成功的json消息/或者返回修改成功的用户的信息
+    return jsonify(user.to_dict(include_email=True))
+ 
 
 @bp.route('/users/<int:id>', methods=['DELETE'])
 def delete_user(id):
