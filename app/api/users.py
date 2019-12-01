@@ -45,8 +45,9 @@ def get_users():
     #获取request中的'page',没找到返回1，强制转换成int型
     page = request.args.get('page',1,type=int)
     per_page=request.args.get('per_page',10,type=int)
-    data = User.to_collection_dict(User.query,page,per_page,'api.get_users')
+    data = User.to_collection_dict(User.query,page,per_page,'/api.get_users')
     return jsonify(data)
+
 @bp.route('/users/<int:id>',methods=['GET'])
 def get_user(id):
     #返回一个用户
@@ -64,19 +65,21 @@ def update_user(id):
     '''
     data = request.get_json()
     user = User.query.get_or_404(id)
-    print(data)
     if not data:
         return bad_request('Json Required !')
     message={}
     pattern =  '^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$'
     #验证json数据
-    if not 'username' in data or not data.get('username',None) :
+    if not 'username' in data or not data.get('username',None):
         message['username'] = "Invalid username"
-    if not 'email' in data or re.match(pattern,data.get('email',None)):
+    if not 'email' in data or not re.match(pattern,data.get('email',None)):
         message['email'] = "Invalid email"
-    #查询修改后的用户不重复，才能修改
-
-    
+    #查询修改后的用户名是否重复
+    if User.query.filter_by(username=data['username']).first():
+        message['username'] = "Unique username verification failed."
+    #查询邮箱是否重复
+    if User.query.filter_by(email=data['email']).first():
+        message['email'] = "Unique email verification failed."
     if message:
         return bad_request(message)
 
@@ -90,7 +93,7 @@ def update_user(id):
     
 
     #修改完成后返回修改成功的json消息/或者返回修改成功的用户的信息
-    return jsonify(user.to_dict(include_email=True))
+    return jsonify(user.to_dict())
  
 
 @bp.route('/users/<int:id>', methods=['DELETE'])

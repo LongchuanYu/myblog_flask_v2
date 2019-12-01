@@ -1,6 +1,8 @@
+import base64,os
 from app import db
 from flask import url_for
 from werkzeug.security import generate_password_hash,check_password_hash
+from datetime import datetime,timedelta
 
 class PaginatedAPIMixin(object):
     #定义@staticmethod，可以不用实例化类，直接调用，比如：
@@ -37,6 +39,8 @@ class User(PaginatedAPIMixin, db.Model):
     username = db.Column(db.String(64),index=True,unique=True)
     email = db.Column(db.String(120),index=True,unique=True)
     password_hash=db.Column(db.String(128))
+    token = db.Column(db.String(32),index=True,unique=True)
+    token_expiration=db.Column(db.DateTime)
     def __repr__(self):
         return '<User {}>'.format(self.username)
     def set_password(self,password):
@@ -44,11 +48,12 @@ class User(PaginatedAPIMixin, db.Model):
     def check_password(self,password):
         return check_password_hash(self.password_hash,password)
     def to_dict(self,include_email=False):
+        print(self.username,self.id)
         data = {
             'id': self.id,
             'username': self.username,
             '_links': {
-                'self': url_for('api.get_user', id=self.id)
+                'self': url_for('/api.get_user', id=self.id)
             }
         }
         if include_email:
@@ -65,3 +70,29 @@ class User(PaginatedAPIMixin, db.Model):
                 setattr(self,field,data[field])
         if new_user and 'password' in data:
             self.set_password(data['password'])
+    def get_token(self,expires_in=3600):
+        now = datetime.utcnow()
+        #（？），这里怎么理解过期时间>now+60s ?
+        if self.token and self.token_expiration > now + timedelta(seconds=60):
+            return self.token
+
+        #b64decode后的是二进制，需要decode成字符串
+        self.token = base64.b64encode(os.urandom(24)).decode('utf-8')
+
+        self.token_expiration = now + timedelta(seconds=expires_in)
+        print(now,self.token_expiration)
+
+
+        #（？），这里把self添加到session，但是没有commit，为什么？
+        #   1.self指User类的实例
+        db.session.add(self)
+        return self.token
+    def revoke_token(self):
+        #（？）撤回token的原理是什么？
+        self.token_expiration=datetime.utcnow() - timedelta(seconds=1)
+    @staticmethod
+    def check_token(token):
+        user = User.query.filter_by(token=token).first()
+        if user is None or user.token_expiration<datetime.utcnow():
+            return None
+        return user
