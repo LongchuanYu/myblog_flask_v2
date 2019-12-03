@@ -4,7 +4,7 @@ from app.api import bp
 from flask import request,jsonify,url_for
 from app.api.errors import bad_request
 from app.models import User
-
+from app.api.auth import token_auth
 @bp.route('/users',methods =['POST'])
 def create_user():
     #注册
@@ -40,6 +40,7 @@ def create_user():
     return response
 
 @bp.route('/users',methods=['GET'])
+@token_auth.login_required
 def get_users():
     #返回用户集合
     #获取request中的'page',没找到返回1，强制转换成int型
@@ -49,12 +50,14 @@ def get_users():
     return jsonify(data)
 
 @bp.route('/users/<int:id>',methods=['GET'])
+@token_auth.login_required
 def get_user(id):
     #返回一个用户
     #get_or_404()是根据primary_key来返回结果
     return jsonify(User.query.get_or_404(id).to_dict())
 
 @bp.route('/users/<int:id>', methods=['PUT'])
+@token_auth.login_required
 def update_user(id):
     '''修改一个用户
     @param {json} user:{
@@ -98,6 +101,7 @@ def update_user(id):
  
 
 @bp.route('/users/<int:id>', methods=['DELETE'])
+@token_auth.login_required
 def delete_user(id):
     '''删除一个用户'''
     pass
