@@ -51,6 +51,7 @@ def get_users():
 @bp.route('/users/<int:id>',methods=['GET'])
 def get_user(id):
     #返回一个用户
+    #get_or_404()是根据primary_key来返回结果
     return jsonify(User.query.get_or_404(id).to_dict())
 
 @bp.route('/users/<int:id>', methods=['PUT'])

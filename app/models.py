@@ -80,15 +80,18 @@ class User(PaginatedAPIMixin, db.Model):
         self.token = base64.b64encode(os.urandom(24)).decode('utf-8')
 
         self.token_expiration = now + timedelta(seconds=expires_in)
-        print(now,self.token_expiration)
+        
 
 
         #（？），这里把self添加到session，但是没有commit，为什么？
         #   1.self指User类的实例
+        #   2.
         db.session.add(self)
         return self.token
     def revoke_token(self):
-        #（？）撤回token的原理是什么？
+        #（？）撤回token的原理是什么？为什么要减掉1秒？
+        #   卧槽，我傻了。这里是把到期时间（token_expiration）设置为当前时间的前一秒
+        #   也就是设置为过去，当然就过期了啊！！
         self.token_expiration=datetime.utcnow() - timedelta(seconds=1)
     @staticmethod
     def check_token(token):
