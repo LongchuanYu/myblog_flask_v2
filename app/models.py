@@ -48,7 +48,6 @@ class User(PaginatedAPIMixin, db.Model):
     def check_password(self,password):
         return check_password_hash(self.password_hash,password)
     def to_dict(self,include_email=False):
-        print(self.username,self.id)
         data = {
             'id': self.id,
             'username': self.username,

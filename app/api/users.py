@@ -23,7 +23,7 @@ def create_user():
     if User.query.filter_by(username=data.get('username',None)).first():
         message['username']='please use a different username.'
     if User.query.filter_by(email=data.get('email',None)).first():
-        message['username']='please use a different email.'
+        message['email']='please use a different email.'
     if message:
         return bad_request(message)
     user=User()
@@ -34,7 +34,7 @@ def create_user():
     #to_dict()返回一个字典
     response = jsonify(user.to_dict())
     response.status_code=201
-    response.headers['Location']=url_for('api.get_user',id = user.id)
+    response.headers['Location']=url_for('/api.get_user',id = user.id)
     #response包含 、
     #   { "_links": { "self": "/api/users/2" }, "id": 2, "username": "liyang1" }
     return response
