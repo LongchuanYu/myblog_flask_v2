@@ -9,14 +9,16 @@ from app.api.auth import basic_auth,token_auth
 @bp.route('/tokens',methods=['POST'])
 @basic_auth.login_required
 def get_token():
-    token = g.current_user.get_token()
+    token = g.current_user.get_jwt()
     db.session.commit()
     return jsonify({
         'token':token
     })
 
 
-
+'''
+# 改用jwt来实现token
+# jwt只能自然过期
 @bp.route('/tokens', methods=['DELETE'])
 @token_auth.login_required
 def revoke_token():
@@ -26,3 +28,4 @@ def revoke_token():
     db.session.commit()
     return '',204
 
+'''

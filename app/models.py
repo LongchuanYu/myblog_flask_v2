@@ -1,6 +1,6 @@
-import base64,os
+import base64,os,jwt
 from app import db
-from flask import url_for
+from flask import url_for,current_app
 from werkzeug.security import generate_password_hash,check_password_hash
 from datetime import datetime,timedelta
 
@@ -39,8 +39,18 @@ class User(PaginatedAPIMixin, db.Model):
     username = db.Column(db.String(64),index=True,unique=True)
     email = db.Column(db.String(120),index=True,unique=True)
     password_hash=db.Column(db.String(128))
-    token = db.Column(db.String(32),index=True,unique=True)
-    token_expiration=db.Column(db.DateTime)
+    name = db.Column(db.String(64))
+    location = db.Column(db.String(64))
+    about_me = db.Column(db.Text())
+    member_since = db.Column(db.DateTime(), default=datetime.utcnow)
+    last_seen = db.Column(db.DateTime(), default=datetime.utcnow)
+    
+    
+    # 改用jwt来实现token
+    # token = db.Column(db.String(32),index=True,unique=True)
+    # token_expiration=db.Column(db.DateTime)
+
+    #（？）这一段一致不理解
     def __repr__(self):
         return '<User {}>'.format(self.username)
     def set_password(self,password):
@@ -69,32 +79,70 @@ class User(PaginatedAPIMixin, db.Model):
                 setattr(self,field,data[field])
         if new_user and 'password' in data:
             self.set_password(data['password'])
-    def get_token(self,expires_in=3600):
+    def get_jwt(self,expires_in=10):
         now = datetime.utcnow()
-        #（？），这里怎么理解过期时间>now+60s ?
-        if self.token and self.token_expiration > now + timedelta(seconds=60):
-            return self.token
+        payload = {
+            'user_id':self.id,
+            'name':self.name if self.name else self.username,
+            'exp':now+timedelta(seconds=expires_in),
+            'iat':now
+        }
+        return jwt.encode(
+            payload,current_app.config['SECRET_KEY'],algorithm="HS256"
+        ).decode('utf-8')
 
-        #b64decode后的是二进制，需要decode成字符串
-        self.token = base64.b64encode(os.urandom(24)).decode('utf-8')
-
-        self.token_expiration = now + timedelta(seconds=expires_in)
-        
-
-
-        #（？），这里把self添加到session，但是没有commit，为什么？
-        #   1.self指User类的实例
-        #   2.
-        db.session.add(self)
-        return self.token
-    def revoke_token(self):
-        #（？）撤回token的原理是什么？为什么要减掉1秒？
-        #   卧槽，我傻了。这里是把到期时间（token_expiration）设置为当前时间的前一秒
-        #   也就是设置为过去，当然就过期了啊！！
-        self.token_expiration=datetime.utcnow() - timedelta(seconds=1)
     @staticmethod
-    def check_token(token):
-        user = User.query.filter_by(token=token).first()
-        if user is None or user.token_expiration<datetime.utcnow():
+    def verify_jwt(token):
+        try:
+            payload = jwt.decode(
+                token,
+                current_app.config['SECRET_KEY'],
+                algorithms=['HS256'])
+        except (jwt.exceptions.ExpiredSignatureError, jwt.exceptions.InvalidSignatureError) as e:
+            # Token过期，或被人修改，那么签名验证也会失败
             return None
-        return user
+        return User.query.get(payload.get('user_id'))
+
+
+
+
+
+
+
+
+
+'''
+# 改用jwt来实现token
+def get_token(self,expires_in=3600):
+    now = datetime.utcnow()
+    #（？），这里怎么理解过期时间>now+60s ?
+    if self.token and self.token_expiration > now + timedelta(seconds=60):
+        return self.token
+
+    #b64decode后的是二进制，需要decode成字符串
+    self.token = base64.b64encode(os.urandom(24)).decode('utf-8')
+
+    self.token_expiration = now + timedelta(seconds=expires_in)
+    
+
+
+    #（？），这里把self添加到session，但是没有commit，为什么？
+    #   1.self指User类的实例
+    #   2.
+    db.session.add(self)
+    return self.token
+def revoke_token(self):
+    #（？）撤回token的原理是什么？为什么要减掉1秒？
+    #   卧槽，我傻了。这里是把到期时间（token_expiration）设置为当前时间的前一秒
+    #   也就是设置为过去，当然就过期了啊！！
+    self.token_expiration=datetime.utcnow() - timedelta(seconds=1)
+
+
+@staticmethod
+def check_token(token):
+    user = User.query.filter_by(token=token).first()
+    if user is None or user.token_expiration<datetime.utcnow():
+        return None
+    return user
+
+'''
