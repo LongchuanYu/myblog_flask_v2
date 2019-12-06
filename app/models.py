@@ -99,7 +99,8 @@ class User(PaginatedAPIMixin, db.Model):
                 current_app.config['SECRET_KEY'],
                 algorithms=['HS256'])
         except (jwt.exceptions.ExpiredSignatureError, jwt.exceptions.InvalidSignatureError) as e:
-            # Token过期，或被人修改，那么签名验证也会失败
+            # （？）这里怎么验证token过期呢？
+            #   Expiration time is automatically verified in jwt.decode() and raises jwt.ExpiredSignatureError if the expiration time is in the past
             return None
         return User.query.get(payload.get('user_id'))
 
