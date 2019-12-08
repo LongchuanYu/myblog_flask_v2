@@ -10,6 +10,7 @@ from app.api.auth import basic_auth,token_auth
 @basic_auth.login_required
 def get_token():
     token = g.current_user.get_jwt()
+    g.current_user.ping()
     db.session.commit()
     return jsonify({
         'token':token

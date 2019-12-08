@@ -1,5 +1,6 @@
 import base64,os,jwt
 from app import db
+from hashlib import md5
 from flask import url_for,current_app
 from werkzeug.security import generate_password_hash,check_password_hash
 from datetime import datetime,timedelta
@@ -59,10 +60,17 @@ class User(PaginatedAPIMixin, db.Model):
         return check_password_hash(self.password_hash,password)
     def to_dict(self,include_email=False):
         data = {
-            'id': self.id,
+           'id': self.id,
             'username': self.username,
+            'name': self.name,
+            'location': self.location,
+            'about_me': self.about_me,
+            #（？） 为什么要加个'z'
+            'member_since': self.member_since.isoformat() + 'Z' if self.member_since else "", 
+            'last_seen': self.last_seen.isoformat() + 'Z' if self.last_seen else "",
             '_links': {
-                'self': url_for('/api.get_user', id=self.id)
+                'self': url_for('/api.get_user', id=self.id),
+                'avatar': self.avatar(128)
             }
         }
         if include_email:
@@ -79,7 +87,7 @@ class User(PaginatedAPIMixin, db.Model):
                 setattr(self,field,data[field])
         if new_user and 'password' in data:
             self.set_password(data['password'])
-    def get_jwt(self,expires_in=10):
+    def get_jwt(self,expires_in=9000):
         now = datetime.utcnow()
         payload = {
             'user_id':self.id,
@@ -90,7 +98,9 @@ class User(PaginatedAPIMixin, db.Model):
         return jwt.encode(
             payload,current_app.config['SECRET_KEY'],algorithm="HS256"
         ).decode('utf-8')
-
+    def ping(self):
+        self.last_seen = datetime.utcnow()
+        db.session.add(self)
     @staticmethod
     def verify_jwt(token):
         try:
@@ -101,12 +111,14 @@ class User(PaginatedAPIMixin, db.Model):
         except (jwt.exceptions.ExpiredSignatureError, jwt.exceptions.InvalidSignatureError) as e:
             # （？）这里怎么验证token过期呢？
             #   Expiration time is automatically verified in jwt.decode() and raises jwt.ExpiredSignatureError if the expiration time is in the past
+            print(e)
             return None
         return User.query.get(payload.get('user_id'))
+    
 
-
-
-
+    def avatar(self,size):
+        digest = md5(self.email.lower().encode('utf-8')).hexdigest()
+        return 'https://www.gravatar.com/avatar/{}?d=identicon&s={}'.format(digest, size)
 
 
 

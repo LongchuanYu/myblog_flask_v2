@@ -1,12 +1,8 @@
-from datetime import datetime,timedelta
+from datetime import datetime,timedelta,date
 import base64,os
 import jwt
 
-payload={
-    "aud":'liyang',
-    "exp":'2019/12/06'
-}
-
-
-ret = jwt.encode(payload,"hello",algorithm="HS256")
-print(ret)
+mytime = date(2019,12,12)
+print(datetime.utcnow())
+print(datetime.utcnow().microsecond())
+print(mytime.isoformat())
