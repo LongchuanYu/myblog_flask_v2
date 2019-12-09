@@ -73,27 +73,29 @@ def update_user(id):
         return bad_request('Json Required !')
     message={}
     pattern =  '^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$'
+    
+    #（？）这里怎么验证数据？
+    #   我傻掉了，创建用户才验证数据完整性，即验证是否有username、email等等
+    #   而修改则不需要，因为可以选择只修改username或者一部分。。。误：if not 'username' in data or not data.get('username',None):pass
+    #   所以验证数据的时候只需要验证传来的json中有的那一部分就可以了。。。
     #验证json数据
-    if not 'username' in data or not data.get('username',None):
+    if 'username' in data and not data.get('username',None):
         message['username'] = "Invalid username"
-    if not 'email' in data or not re.match(pattern,data.get('email',None)):
+    if 'email' in data and not re.match(pattern,data.get('email',None)):
         message['email'] = "Invalid email"
     #查询修改后的用户名是否重复
-    if User.query.filter_by(username=data['username']).first():
+    if 'username' in data and User.query.filter_by(username=data['username']).first():
         message['username'] = "Unique username verification failed."
     #查询邮箱是否重复
-    if User.query.filter_by(email=data['email']).first():
+    if 'email' in data and User.query.filter_by(email=data['email']).first():
         message['email'] = "Unique email verification failed."
     if message:
         return bad_request(message)
 
     
     #数据库接口
-    try:
-        user.from_dict(data)
-        db.session.commit()
-    except Exception as e:
-        return bad_request(str(e))
+    user.from_dict(data)
+    db.session.commit()
     
 
     #修改完成后返回修改成功的json消息/或者返回修改成功的用户的信息

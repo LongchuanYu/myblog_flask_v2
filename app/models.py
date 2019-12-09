@@ -78,7 +78,7 @@ class User(PaginatedAPIMixin, db.Model):
         return data
     #data是客户端传来的json数据
     def from_dict(self,data,new_user=False):
-        for field in ['username','email']:
+        for field in ['username','email', 'name', 'location', 'about_me']:
             if field in data:
                 #self指的是类实例对象本身
                 #   说到底，字段也就是定义的类里面的属性
