@@ -35,6 +35,7 @@ class PaginatedAPIMixin(object):
     
 
 class User(PaginatedAPIMixin, db.Model):
+    __tablename__ = "users"
     id = db.Column(db.Integer,primary_key=True)
     #index为索引字段
     username = db.Column(db.String(64),index=True,unique=True)
@@ -46,6 +47,8 @@ class User(PaginatedAPIMixin, db.Model):
     member_since = db.Column(db.DateTime(), default=datetime.utcnow)
     last_seen = db.Column(db.DateTime(), default=datetime.utcnow)
     
+    posts = db.relationship('Post',backref='author',
+        lazy='dynamic',cascade='all,delete-orphan')
     
     # 改用jwt来实现token
     # token = db.Column(db.String(32),index=True,unique=True)
@@ -121,7 +124,19 @@ class User(PaginatedAPIMixin, db.Model):
         return 'https://www.gravatar.com/avatar/{}?d=identicon&s={}'.format(digest, size)
 
 
+class Post(PaginatedAPIMixin,db.Model):
+    __tablename__='posts'
+    id = db.Column(db.Integer,primary_key=True)
+    title = db.Column(db.String(255))
+    body =db.Column(db.Text)
+    timestamp = db.Column(db.DateTime,index=True,default=datetime.utcnow())
+    summary = db.Column(db.Text)
+    views = db.Column(db.Integer,default=0)
+    author_id = db.Column(db.Integer,db.ForeignKey('users.id'))
 
+
+    def __repr__(self):
+        return '<Post {}>'.format(self.title)
 
 
 '''
