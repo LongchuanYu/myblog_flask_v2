@@ -1,11 +1,9 @@
-from flask import jsonify
+from flask import jsonify,g
 from app.api import bp
 from app import db
 from app.models import User
 
-@bp.route('/ping',methods=['GET'])
+@bp.route('/ping',methods=['POST'])
 def ping():
-    user = User.query.filter_by(username='liyang1').first()
-    user.username="laowang"
-    db.session.commit()
-    return jsonify('Success!')
+    print(g.get('current_user'))
+    return "123"

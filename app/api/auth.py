@@ -12,6 +12,7 @@ token_auth = HTTPTokenAuth()
 
 @basic_auth.verify_password
 def verify_password(username,password):
+    print("basic_auth")
     user = User.query.filter_by(username=username).first()
     if user is None:
         return False
@@ -24,6 +25,7 @@ def basic_auth_error():
 
 @token_auth.verify_token
 def verify_token(token):
+    print("verify_token")
     g.current_user = User.verify_jwt(token) if token else None
     #   根据返回的true或false来判断验证是否成功
     return g.current_user is not None

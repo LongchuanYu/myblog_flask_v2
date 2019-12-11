@@ -87,6 +87,7 @@ class User(PaginatedAPIMixin, db.Model):
                 #   说到底，字段也就是定义的类里面的属性
                 #   因此这里可以把字段添加到实例的属性里面去
                 #   通过db.session.add(something)来添加到session里面
+                #   ....或者直接commit()
                 setattr(self,field,data[field])
         if new_user and 'password' in data:
             self.set_password(data['password'])
@@ -137,6 +138,45 @@ class Post(PaginatedAPIMixin,db.Model):
 
     def __repr__(self):
         return '<Post {}>'.format(self.title)
+
+    def from_dict(self,data):
+        for field in ['title','body','summary',"author_id"]:
+            if field in data:
+                setattr(self,field,data[field])
+    def to_dict(self):
+        data={
+            'title':self.title,
+            'body':self.body,
+            'timestamp':self.timestamp,
+            'summary':self.summary,
+            'views':self.views,
+            'author_id':self.author_id
+        }
+        return data
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 '''

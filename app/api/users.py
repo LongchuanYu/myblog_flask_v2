@@ -7,7 +7,7 @@ from app.models import User
 from app.api.auth import token_auth
 @bp.route('/users',methods =['POST'])
 def create_user():
-    #注册
+    #注册 
     data = request.get_json()
     if not data:
         return bad_request('you must post Json data.')
