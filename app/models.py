@@ -55,6 +55,7 @@ class User(PaginatedAPIMixin, db.Model):
     # token_expiration=db.Column(db.DateTime)
 
     #（？）这一段一致不理解
+    #   打印User对象的时候返回，比如print(User()) -> <User ly1>
     def __repr__(self):
         return '<User {}>'.format(self.username)
     def set_password(self,password):

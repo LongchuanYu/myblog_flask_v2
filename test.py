@@ -2,7 +2,13 @@ from datetime import datetime,timedelta,date
 import base64,os
 import jwt
 
-mytime = date(2019,12,12)
-print(datetime.utcnow())
-print(datetime.utcnow().microsecond())
-print(mytime.isoformat())
+class Test:
+    name="ly"
+    age=11
+    def say(self):
+        print(self.name)
+        print(self.age)
+    def __repr__(self):
+        return "wawawa"
+
+print(Test())
