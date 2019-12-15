@@ -18,10 +18,10 @@ class PaginatedAPIMixin(object):
         data={
             'items':[item.to_dict() for item in resources.items],
             '_meta':{
-                'page':page,
+                'page':page, #当前页码
                 'per_page':per_page,
                 'total_pages':resources.pages,
-                'total_tiems':resources.total
+                'total_items':resources.total
             },
             '_links':{
                 'self':url_for(endpoint,page=page,per_page=per_page,**kwargs),
@@ -151,7 +151,11 @@ class Post(PaginatedAPIMixin,db.Model):
             'timestamp':self.timestamp,
             'summary':self.summary,
             'views':self.views,
-            'author_id':self.author_id
+            'author':self.author.to_dict(),
+            "_links":{
+                'self':url_for('/api.get_post',id=self.id),
+                'author_url':url_for('/api.get_user',id=self.author_id)
+            }
         }
         return data
 
