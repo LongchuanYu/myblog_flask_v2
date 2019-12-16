@@ -30,5 +30,6 @@
 	正确应该是： default=datetime.utcnow
 	
 3.如何解决bootstrap-markdown不显示错feedback tooltips
-	1.不要挂在post_body上
+答：	1.不要挂在post_body上
 	2.分析下插件的DOM构成，用jquery动态生成class： $(".md-editor").addClass("is-invalid")
+
