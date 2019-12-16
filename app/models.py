@@ -131,7 +131,7 @@ class Post(PaginatedAPIMixin,db.Model):
     id = db.Column(db.Integer,primary_key=True)
     title = db.Column(db.String(255))
     body =db.Column(db.Text)
-    timestamp = db.Column(db.DateTime,index=True,default=datetime.utcnow())
+    timestamp = db.Column(db.DateTime,index=True,default=datetime.utcnow)
     summary = db.Column(db.Text)
     views = db.Column(db.Integer,default=0)
     author_id = db.Column(db.Integer,db.ForeignKey('users.id'))
@@ -146,6 +146,7 @@ class Post(PaginatedAPIMixin,db.Model):
                 setattr(self,field,data[field])
     def to_dict(self):
         data={
+            'id':self.id,
             'title':self.title,
             'body':self.body,
             'timestamp':self.timestamp,

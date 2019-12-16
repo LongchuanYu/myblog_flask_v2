@@ -1,20 +1,34 @@
-分页实现
+【功能需求】
+1.文章的CRUD
+2.阅读量功能
+3.
 
-1.分页总数计算：页数 = total(文章总数) / per_page(每一页文章数)   *向上取整
 
+
+【分页实现】
 2.iter_pages
 	1.数组格式：[第一页，... ，当前页-2，当前页-1，当前页，当前页+1，当前页+2，... ，最后一页]
 	2.去除小于1，且大于最大页码的项
 	3.去除重复项 结果：< 1 0 1 2 3 4 7 > -> < 1 2 3 4 7 >
 	4.判断头是否连续，插入标记 结果：< 1 ... 97 98 99 100 101 100 >
 	5.判断尾是否连续，插入标记  结果：< 1 2 3 ... 100 >
+	6.
 
 
 
 
-
-问题集
+【问题集】
 1.访问主页时候url是这样的 http://localhost:8080/#/
   这是主页内容，也是第一页的内容，第一页的url是这样的：http://localhost:8080/#/?page=1&per_page=4
   怎么样才能点主页的时候url自动变成query的形式呢？
 答：不需要这样做，主页的url还是"/"，不需要带参数。只要分页栏判断一下是从主页进入的就把第一页的按钮亮起来
+
+
+2.为什么文章卡片的时间不对呢？刚发表的时间居然是3 hours ago
+答：woca，后端model.py中Post表定义的timestamp有问题
+	神tm： default=datetime.utcnow()
+	正确应该是： default=datetime.utcnow
+	
+3.如何解决bootstrap-markdown不显示错feedback tooltips
+	1.不要挂在post_body上
+	2.分析下插件的DOM构成，用jquery动态生成class： $(".md-editor").addClass("is-invalid")
