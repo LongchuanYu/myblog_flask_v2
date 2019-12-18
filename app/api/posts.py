@@ -62,8 +62,8 @@ def get_post(id):
 def update_post(id):
     '''修改post'''
     post = Post.query.get_or_404(id)
-    if g.current_user != post.author:
-        return error_response(403)
+    # if g.current_user != post.author:
+    #     return error_response(403)
     data = request.get_json()
     if not data:
         return bad_request("Json expected!")
