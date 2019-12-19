@@ -59,11 +59,13 @@ def get_post(id):
     return jsonify(post.to_dict())
 
 @bp.route('/posts/<int:id>',methods=['PUT'])
+@token_auth.login_required
 def update_post(id):
     '''修改post'''
     post = Post.query.get_or_404(id)
-    # if g.current_user != post.author:
-    #     return error_response(403)
+    #（debug）
+    if g.current_user != post.author:
+        return error_response(403)
     data = request.get_json()
     if not data:
         return bad_request("Json expected!")
@@ -80,8 +82,10 @@ def update_post(id):
     return jsonify(post.to_dict())
 
 @bp.route('/posts/<int:id>',methods=['DELETE'])
+@token_auth.login_required
 def delete_post(id):
     post = Post.query.get_or_404(id)
+    #（debug）
     if g.current_user != post.author:
         return error_response(403)
     db.session.delete(post)
