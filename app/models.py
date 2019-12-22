@@ -33,6 +33,12 @@ class PaginatedAPIMixin(object):
         }
         return data
     
+followers = db.Table(
+    'followers',
+    db.Column('follower_id',db.Integer,db.ForeignKey('users.id')), #我关注了谁？
+    db.Column('followed_id',db.Integer,db.ForeignKey('users.id')), #我的粉丝是谁？
+    db.Column('timestamp',db.Integer,default=datetime.utcnow)
+)
 
 class User(PaginatedAPIMixin, db.Model):
     __tablename__ = "users"
@@ -49,12 +55,26 @@ class User(PaginatedAPIMixin, db.Model):
     
     posts = db.relationship('Post',backref='author',
         lazy='dynamic',cascade='all,delete-orphan')
-    
+    #（？）怎么理解参数secondary？
+    #   答：查看文档，在多对多关系中，secondary指定中间表
+    #（？）怎么理解followeds.c.follower_id?
+    #   答：这c应该是column的缩写，这里引用中间表followeds的follower_id列
+    #（？）如何理解followeds和反向引用db.backref('followers')?
+    #   答：followeds:我关注了谁
+    #       followers：我的粉丝是谁
+    #（？）思考，这里用sql如何实现呢？
+    followeds = db.relationship(  
+        'User',secondary=followers,
+        primaryjoin=(followers.c.follower_id == id),
+        secondaryjoin=(followers.c.followed_id==id),
+        backref=db.backref('followers',lazy='dynamic'),
+        lazy='dynamic'
+    )
     # 改用jwt来实现token
     # token = db.Column(db.String(32),index=True,unique=True)
     # token_expiration=db.Column(db.DateTime)
 
-    #（？）这一段一致不理解
+    #（？）这一段一致不理解+
     #   打印User对象的时候返回，比如print(User()) -> <User ly1>
     def __repr__(self):
         return '<User {}>'.format(self.username)
@@ -72,6 +92,11 @@ class User(PaginatedAPIMixin, db.Model):
             #（？） 为什么要加个'z'
             'member_since': self.member_since.isoformat() + 'Z' if self.member_since else "", 
             'last_seen': self.last_seen.isoformat() + 'Z' if self.last_seen else "",
+            'posts_count':self.posts.count(),
+            #（？）如何理解followed_posts_count？哪来的followed_posts？ -
+            'followed_posts_count':self.followed_posts.count(),
+            'followeds_count':self.followeds.count(),
+            'followers_count':self.followers.count(),
             '_links': {
                 'self': url_for('/api.get_user', id=self.id),
                 'avatar': self.avatar(128)
@@ -124,6 +149,34 @@ class User(PaginatedAPIMixin, db.Model):
     def avatar(self,size):
         digest = md5(self.email.lower().encode('utf-8')).hexdigest()
         return 'https://www.gravatar.com/avatar/{}?d=identicon&s={}'.format(digest, size)
+
+    def is_following(self,user):
+        #（？）这里如何理解？+
+        #   答：功能 -> 我是否关注了user？
+        #   ....在我的关注列表(也就是中间表followers)里面查找id(也就是我关注了谁followed_id)等于user.id的项目
+        return self.followeds.filter(
+            followers.c.followed_id == user.id).count()>0
+    def follow(self,user):
+        if not self.is_following(user):
+            #（？）这里followeds字段是列表吗？为什么可以用append？-
+            self.followeds.append(user)
+    def unfollow(self,user):
+        if self.is_following(user):
+            self.followeds.remove(user)
+
+    #（？）property装饰器的作用是什么？ -
+    @property
+    def followed_posts(self):
+        '''获取当前用户的关注者的所有文章列表'''
+        #（？）如何理解join里面的两个参数？-
+        followed = Post.query.join(
+            followers, (followers.c.followed_id == Post.author_id)).filter(
+                followers.c.follower_id == self.id)
+        # 包含当前用户自己的文章列表
+        # own = Post.query.filter_by(user_id=self.id)
+        # return followed.union(own).order_by(Post.timestamp.desc())
+        return followed.order_by(Post.timestamp.desc())
+
 
 
 class Post(PaginatedAPIMixin,db.Model):
