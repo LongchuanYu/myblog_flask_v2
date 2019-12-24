@@ -159,6 +159,8 @@ class User(PaginatedAPIMixin, db.Model):
     def follow(self,user):
         if not self.is_following(user):
             #（？）这里followeds字段是列表吗？为什么可以用append？-
+            #   答：参照SQLAlchemy文档-Working with Related Objects
+            #   ....它可以是各种collection types，默认是Python List
             self.followeds.append(user)
     def unfollow(self,user):
         if self.is_following(user):
