@@ -55,14 +55,14 @@ class User(PaginatedAPIMixin, db.Model):
     
     posts = db.relationship('Post',backref='author',
         lazy='dynamic',cascade='all,delete-orphan')
-    #（？）怎么理解参数secondary？
+    #（？）怎么理解参数secondary？ +
     #   答：查看文档，在多对多关系中，secondary指定中间表
-    #（？）怎么理解followeds.c.follower_id?
+    #（？）怎么理解followeds.c.follower_id? +
     #   答：这c应该是column的缩写，这里引用中间表followeds的follower_id列
-    #（？）如何理解followeds和反向引用db.backref('followers')?
+    #（？）如何理解followeds和反向引用db.backref('followers')? +
     #   答：followeds:我关注了谁
     #       followers：我的粉丝是谁
-    #（？）思考，这里用sql如何实现呢？
+    #（？）思考，这里用sql如何实现呢？ -
     followeds = db.relationship(  
         'User',secondary=followers,
         primaryjoin=(followers.c.follower_id == id),
@@ -74,7 +74,7 @@ class User(PaginatedAPIMixin, db.Model):
     # token = db.Column(db.String(32),index=True,unique=True)
     # token_expiration=db.Column(db.DateTime)
 
-    #（？）这一段一致不理解+
+    #（？）这一段一致不理解 +
     #   打印User对象的时候返回，比如print(User()) -> <User ly1>
     def __repr__(self):
         return '<User {}>'.format(self.username)
@@ -89,7 +89,7 @@ class User(PaginatedAPIMixin, db.Model):
             'name': self.name,
             'location': self.location,
             'about_me': self.about_me,
-            #（？） 为什么要加个'z'
+            #（？） 为什么要加个'z' -
             'member_since': self.member_since.isoformat() + 'Z' if self.member_since else "", 
             'last_seen': self.last_seen.isoformat() + 'Z' if self.last_seen else "",
             'posts_count':self.posts.count(),
@@ -139,7 +139,7 @@ class User(PaginatedAPIMixin, db.Model):
                 current_app.config['SECRET_KEY'],
                 algorithms=['HS256'])
         except (jwt.exceptions.ExpiredSignatureError, jwt.exceptions.InvalidSignatureError) as e:
-            # （？）这里怎么验证token过期呢？
+            # （？）这里怎么验证token过期呢？ +
             #   Expiration time is automatically verified in jwt.decode() and raises jwt.ExpiredSignatureError if the expiration time is in the past
             print(e)
             return None
@@ -158,7 +158,7 @@ class User(PaginatedAPIMixin, db.Model):
             followers.c.followed_id == user.id).count()>0
     def follow(self,user):
         if not self.is_following(user):
-            #（？）这里followeds字段是列表吗？为什么可以用append？-
+            #（？）这里followeds字段是列表吗？为什么可以用append？+
             #   答：参照SQLAlchemy文档-Working with Related Objects
             #   ....它可以是各种collection types，默认是Python List
             self.followeds.append(user)
