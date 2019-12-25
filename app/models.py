@@ -62,6 +62,7 @@ class User(PaginatedAPIMixin, db.Model):
     #（？）如何理解followeds和反向引用db.backref('followers')? +
     #   答：followeds:我关注了谁
     #       followers：我的粉丝是谁
+    #       更多信息请阅读文档
     #（？）思考，这里用sql如何实现呢？ -
     followeds = db.relationship(  
         'User',secondary=followers,
@@ -170,7 +171,10 @@ class User(PaginatedAPIMixin, db.Model):
     @property
     def followed_posts(self):
         '''获取当前用户的关注者的所有文章列表'''
-        #（？）如何理解join里面的两个参数？-
+        #（？）如何理解join里面的两个参数？ +
+        #   第一个参数指定表，第二个参数是链接条件，相当于SQL的ON
+        #   详见官方文档：Querying with Joins
+
         followed = Post.query.join(
             followers, (followers.c.followed_id == Post.author_id)).filter(
                 followers.c.follower_id == self.id)
