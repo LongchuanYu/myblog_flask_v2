@@ -5,10 +5,10 @@ import jwt
 class Test:
     name="ly"
     age=11
+    @property
     def say(self):
-        print(self.name)
-        print(self.age)
+        return self.age+100
     def __repr__(self):
         return "wawawa"
-
-print(Test())
+test=Test()
+print(test.say)

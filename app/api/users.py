@@ -75,7 +75,7 @@ def update_user(id):
     message={}
     pattern =  '^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$'
     
-    #（？）这里怎么验证数据？
+    #（？）这里怎么验证数据？ +
     #   我傻掉了，创建用户才验证数据完整性，即验证是否有username、email等等
     #   而修改则不需要，因为可以选择只修改username或者一部分。。。误：if not 'username' in data or not data.get('username',None):pass
     #   所以验证数据的时候只需要验证传来的json中有的那一部分就可以了。。。
@@ -110,17 +110,21 @@ def delete_user(id):
     pass
 
 
-'''
+
+
+
+'''------------------------------------------------------------------------------------------
     关注与取消关注
 '''
 @bp.route('/follow/<int:id>',methods=['GET'])
+@token_auth.login_required
 def follow(id):
     user = User.query.get_or_404(id)
     if g.current_user == user:
         return bad_request('You cannot follow yourself.')
     if g.current_user.is_following(user):
         return bad_request('You have already followed that user.')
-    g.current_user.follow(user)
+    g.current_user.follow(user) 
     db.session.commit()
     return jsonify({
         'status':'success',
@@ -128,6 +132,7 @@ def follow(id):
     })
 
 @bp.route('/unfollow/<int:id>',methods=['GET'])
+@token_auth.login_required
 def unfollow(id):
     user = User.query.get_or_404(id)
     if g.current_user == user:
@@ -147,17 +152,32 @@ def unfollow(id):
     返回关注了谁列表和我的粉丝列表
 '''
 @bp.route('/users/<int:id>/followeds/',methods=['GET'])
+@token_auth.login_required
 def get_followeds(id):
     user = User.query.get_or_404(id)
     page=request.args.get('page',1,type=int)
     per_page = min(request.args.get('per_page',current_app.config['USERS_PER_PAGE'],type=int),100)
-    #（？）怎么理解user.followeds ？
+    #（？）怎么理解user.followeds ？ +
+    # 答：查询user关注了谁，user.followeds返回了一个查询结果，经过to_collection_dict()实现分页
     data = User.to_collection_dict(user.followeds,page,per_page,'/api.get_followeds',id=id)
 
     for item in data['items']:
-        #（？）item['is_following']怎么理解？ - 
+        #（？）item['is_following']怎么理解？ + 
+        # 答：首先要知道data['items']是什么，很明显它是user的关注列表，
+        #   item是一个经过to_dict()后的字典，但是字典里面并没有is_following
+        #   所以说这里是新加了一个is_following的字典项，目的是为了返回更多信息给前台
+        #   居然可以这样用，长见识了！！
+        # 但是感觉这样有点多余，为什么要给每一个关注的用户打上已关注的标签呢？，毕竟既然他存在这里，就一定是关注了的。
         item['is_following'] = g.current_user.is_following(User.query.get(item['id']))
+
+
         # 获取用户开始关注 followed 的时间
+        #（？）如何理解db.engine.execute？ +
+        # 答：调查了文档，engine.execute执行给定的结构语句，返回一个ResultProxy。
+        #   ResultProxy是一个包装了DB-API的指针对象，我们可以通过它轻易的访问行和列
+        #   简而言之就是返回了一个二维数组* ，描述了返回结果的表。
+        #（？）为什么返回的res可以列表化？ +
+        # 答：请查看上面问题的回答
         res = db.engine.execute(
             "select * from followers where follower_id={} and followed_id={}".
             format(user.id, item['id']))
@@ -166,6 +186,7 @@ def get_followeds(id):
     return jsonify(data)
 
 @bp.route('/users/<int:id>/followers/', methods=['GET'])
+@token_auth.login_required
 def get_followers(id):
     user = User.query.get_or_404(id)
     page = request.args.get('page', 1, type=int)
@@ -173,7 +194,7 @@ def get_followers(id):
         request.args.get(
             'per_page', current_app.config['USERS_PER_PAGE'], type=int), 100)
     data = User.to_collection_dict(
-        user.followers, page, per_page, 'api.get_followers', id=id)
+        user.followers, page, per_page, '/api.get_followers', id=id)
     # 为每个 follower 添加 is_following 标志位
     for item in data['items']:
         item['is_following'] = g.current_user.is_following(
@@ -196,12 +217,12 @@ def get_user_followed_posts(id):
             'per_page', current_app.config['POSTS_PER_PAGE'], type=int), 100)
     data = Post.to_collection_dict(
         user.followed_posts.order_by(Post.timestamp.desc()), page, per_page,
-        'api.get_user_followed_posts', id=id)
+        '/api.get_user_followed_posts', id=id)
     return jsonify(data)
 
 #返回用户的文章列表
 @bp.route('/users/<int:id>/posts/', methods=['GET'])
-@token_auth.login_required
+# @token_auth.login_required
 def get_user_posts(id):
     '''返回该用户的所有文章文章列表'''
     user = User.query.get_or_404(id)
@@ -211,5 +232,5 @@ def get_user_posts(id):
             'per_page', current_app.config['POSTS_PER_PAGE'], type=int), 100)
     data = Post.to_collection_dict(
         user.posts.order_by(Post.timestamp.desc()), page, per_page,
-        'api.get_user_posts', id=id)
+        '/api.get_user_posts', id=id)
     return jsonify(data)

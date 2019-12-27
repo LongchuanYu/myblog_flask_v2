@@ -6,15 +6,17 @@ from werkzeug.security import generate_password_hash,check_password_hash
 from datetime import datetime,timedelta
 
 class PaginatedAPIMixin(object):
-    #定义@staticmethod，可以不用实例化类，直接调用，比如：
-    #   PaginatedAPIMixin.to_collection_dict()
+    #（？）staticmethod是什么？ +
+    #   答案：定义@staticmethod，可以不用实例化类，直接调用，比如：
+    #       PaginatedAPIMixin.to_collection_dict()
     @staticmethod
     def to_collection_dict(query,page,per_page,endpoint,**kwargs):
-        #获取全部数据的分页，详情请见flask-sqlalchemy文档
-        #   返回的是一个Paginate对象
+        #（？）paginate是什么？ +
+        #   答：获取全部数据的分页，详情请见flask-sqlalchemy文档
+        #       返回的是一个Paginate对象
         resources = query.paginate(page,per_page,False)
-        #（？）这里为什么可以调用子类的方法？
-        #   resources是从子类来的，因此可以调用
+        #（？）这里为什么可以调用子类的方法？ +
+        #   答：resources是从子类来的，因此可以调用
         data={
             'items':[item.to_dict() for item in resources.items],
             '_meta':{
@@ -63,7 +65,6 @@ class User(PaginatedAPIMixin, db.Model):
     #   答：followeds:我关注了谁
     #       followers：我的粉丝是谁
     #       更多信息请阅读文档
-    #（？）思考，这里用sql如何实现呢？ -
     followeds = db.relationship(  
         'User',secondary=followers,
         primaryjoin=(followers.c.follower_id == id),
@@ -71,9 +72,6 @@ class User(PaginatedAPIMixin, db.Model):
         backref=db.backref('followers',lazy='dynamic'),
         lazy='dynamic'
     )
-    # 改用jwt来实现token
-    # token = db.Column(db.String(32),index=True,unique=True)
-    # token_expiration=db.Column(db.DateTime)
 
     #（？）这一段一致不理解 +
     #   打印User对象的时候返回，比如print(User()) -> <User ly1>
@@ -94,7 +92,9 @@ class User(PaginatedAPIMixin, db.Model):
             'member_since': self.member_since.isoformat() + 'Z' if self.member_since else "", 
             'last_seen': self.last_seen.isoformat() + 'Z' if self.last_seen else "",
             'posts_count':self.posts.count(),
-            #（？）如何理解followed_posts_count？哪来的followed_posts？ -
+            #（？）如何理解followed_posts_count？哪来的followed_posts？ +
+            #   答：followed_posts是User类定义的一个方法，但是用property修饰了
+            #       最后返回一个经过加工的属性。
             'followed_posts_count':self.followed_posts.count(),
             'followeds_count':self.followeds.count(),
             'followers_count':self.followers.count(),
@@ -152,14 +152,14 @@ class User(PaginatedAPIMixin, db.Model):
         return 'https://www.gravatar.com/avatar/{}?d=identicon&s={}'.format(digest, size)
 
     def is_following(self,user):
-        #（？）这里如何理解？+
+        #（？）这里如何理解？ +
         #   答：功能 -> 我是否关注了user？
         #   ....在我的关注列表(也就是中间表followers)里面查找id(也就是我关注了谁followed_id)等于user.id的项目
         return self.followeds.filter(
             followers.c.followed_id == user.id).count()>0
     def follow(self,user):
         if not self.is_following(user):
-            #（？）这里followeds字段是列表吗？为什么可以用append？+
+            #（？）这里followeds字段是列表吗？为什么可以用append？ +
             #   答：参照SQLAlchemy文档-Working with Related Objects
             #   ....它可以是各种collection types，默认是Python List
             self.followeds.append(user)
@@ -167,7 +167,9 @@ class User(PaginatedAPIMixin, db.Model):
         if self.is_following(user):
             self.followeds.remove(user)
 
-    #（？）property装饰器的作用是什么？ -
+    #（？）property装饰器的作用是什么？ +
+    #   答：1.方法属性化，直接用User.followed_posts访问,最后作为一个属性返回
+    #   2.只读属性，不允许直接修改。但是可以用setter装饰器修改。
     @property
     def followed_posts(self):
         '''获取当前用户的关注者的所有文章列表'''
