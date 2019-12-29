@@ -122,7 +122,8 @@ class User(PaginatedAPIMixin, db.Model):
         now = datetime.utcnow()
         payload = {
             'user_id':self.id,
-            'name':self.name if self.name else self.username,
+            'user_name':self.name if self.name else self.username,
+            'user_avatar':base64.b64encode(self.avatar(24).encode('utf-8')).decode('utf-8'),
             'exp':now+timedelta(seconds=expires_in),
             'iat':now
         }
