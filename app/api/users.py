@@ -55,7 +55,12 @@ def get_users():
 def get_user(id):
     #返回一个用户
     #get_or_404()是根据primary_key来返回结果
-    return jsonify(User.query.get_or_404(id).to_dict(include_email=True))
+    user = User.query.get_or_404(id)
+    if g.current_user == user:
+        return jsonify(user.to_dict(include_email=True))
+    data = user.to_dict()
+    data['is_following'] = g.current_user.is_following(user) 
+    return jsonify(data)
 
 @bp.route('/users/<int:id>', methods=['PUT'])
 @token_auth.login_required
