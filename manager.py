@@ -2,6 +2,13 @@ from app import create_app,db
 from app.models import User
 app = create_app()
 
+@app.cli.command()
+def test():
+    'run the unit tests..'
+    import unittest
+    tests = unittest.TestLoader().discover('tests')
+    unittest.TextTestRunner(verbosity=2).run(tests)
+
 
 #注册一个shell上下文处理器的函数
 #在flask shell中可以执行该函数
