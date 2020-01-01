@@ -8,4 +8,3 @@ class BasicsTestCase(CommonMethods):
         self.assertFalse(current_app is None)
     def test_app_is_testing(self):
         self.assertTrue(current_app.config['TESTING'])
-    
