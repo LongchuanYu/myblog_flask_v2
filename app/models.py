@@ -54,7 +54,7 @@ class User(PaginatedAPIMixin, db.Model):
     about_me = db.Column(db.Text())
     member_since = db.Column(db.DateTime(), default=datetime.utcnow)
     last_seen = db.Column(db.DateTime(), default=datetime.utcnow)
-    
+    comments = db.relationship('Comment',backref='author',lazy='dynamic',cascade='all,delete-orphan')
     posts = db.relationship('Post',backref='author',
         lazy='dynamic',cascade='all,delete-orphan')
     #（？）怎么理解参数secondary？ +
@@ -197,7 +197,8 @@ class Post(PaginatedAPIMixin,db.Model):
     summary = db.Column(db.Text)
     views = db.Column(db.Integer,default=0)
     author_id = db.Column(db.Integer,db.ForeignKey('users.id'))
-
+    
+    comments = db.relationship('Comment',backref='post',lazy='dynamic',cascade='all,delete-orphan')
 
     def __repr__(self):
         return '<Post {}>'.format(self.title)
@@ -224,9 +225,47 @@ class Post(PaginatedAPIMixin,db.Model):
 
 
 
-
-
-
+class Comment(PaginatedAPIMixin,db.Model):
+    __tablename__='comments'
+    id = db.Column(db.Integer,primary_key=True)
+    body = db.Column(db.Text)
+    timestamp = db.Column(db.DateTime,index=True,default=datetime.utcnow)
+    mark_read=db.Column(db.Boolean,default=False)
+    disabled=db.Column(db.Boolean,default=False)
+    author_id = db.Column(db.Integer,db.ForeignKey('users.id'))
+    post_id = db.Column(db.Integer,db.ForeignKey('posts.id'))
+    parent_id = db.Column(db.Integer,db.ForeignKey('comments.id',ondelete='CASCADE'))
+    #（？）cascade必须定义在“多”的那一侧，db.backref()这个是用方法在文档哪里呢？ -
+    # 答：初步参照Relationship Configuration - Adjacency List Relationship
+    parent = db.relationship('Comment', backref=db.backref('children', cascade='all, delete-orphan'), remote_side=[id])
+    def __repr__(self):
+        return '<Comment {}>'.format(self.id)
+    def get_descendants(self):
+        data = set()
+        def descendants(comment):
+            if comment.children:
+                data.update(comment.children)
+            for child in comment.children:
+                descendants(child)
+        descendants(self)
+        return data
+    def from_dict(self,data):
+        '''把接收到的json附加到对象的属性'''
+        for field in ['body','timestamp','mark_read','disabled','author_id','post_id','parent_id']:
+            if field in data:
+                setattr(self,field,data[field])
+    def to_dict(self):
+        data = {
+            'body':self.body,
+            'timestamp':self.timestamp,
+            'disabled':self.disabled,
+            'author_id':self.author_id,
+            'post_id':self.post_id,
+            'parent_id':self.parent_id,
+            'post':self.post.to_dict(),
+            'author':self.author.to_dict()
+        }
+        return data
 
 
 
