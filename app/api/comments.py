@@ -1,4 +1,4 @@
-from flask import request,g
+from flask import request,g,current_app,jsonify
 from app import db
 from app.api import bp
 from app.models import Comment,Post,User
@@ -26,3 +26,19 @@ def create_comment():
     db.session.commit()
     response = comment.to_dict()
     return response
+
+@bp.route('/comments',methods=['GET'])
+@token_auth.login_required
+def get_comments():
+    page = request.args.get('page',1,type=int)
+    per_page=min(request.args.get(
+        'per_page',current_app.config['COMMENT_PER_PAGE'],type=int
+    ),100)
+    data = Comment.to_collection_dict(
+        Comment.query.order_by(Comment.timestamp.desc()),
+        page,
+        per_page,
+        '/api.get_comments'
+    )
+    return jsonify(data)
+    

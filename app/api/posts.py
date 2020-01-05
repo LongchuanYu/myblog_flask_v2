@@ -1,10 +1,10 @@
 from app import db
-from app.models import Post
+from app.models import Post,Comment
 from app.api import bp
 from app.api.errors import bad_request,error_response
 from app.api.auth import token_auth
 
-from flask import request,jsonify,g
+from flask import request,jsonify,g,current_app
 
 @bp.route('/posts',methods=['POST'])
 @token_auth.login_required
@@ -91,3 +91,27 @@ def delete_post(id):
     db.session.delete(post)
     db.session.commit()
     return '',204
+
+@bp.route('/posts/<int:id>/comments',methods=['GET'])
+def get_post_comments(id):
+    post = Post.query.get_or_404(id)
+    page = request.args.get('page',1,type=int)
+    per_page = min(request.args.get(
+        'per_page',current_app.config['COMMENT_PER_PAGE'],type=int
+    ),100)
+    data = Comment.to_collection_dict(
+        post.comments.filter(Comment.parent==None).order_by(Comment.timestamp.desc()),
+        page,
+        per_page,
+        '/api.get_post_comments',
+        id=id
+    )
+    #遍历顶层评论
+    for item in data['items']:
+        comment = Comment.query.get(item['id'])
+        #获取每条顶层评论的后代
+        descendants = [child.to_dict() for child in comment.get_descendants()]
+        #把每条顶层评论的后代按照字典key排序
+        from operator import itemgetter
+        item['descendants'] = sorted(descendants,key=itemgetter('timestamp'))
+    return jsonify(data)

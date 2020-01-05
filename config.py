@@ -13,3 +13,4 @@ class Config(object):
     SECRET_KEY = 'DEV'
     USERS_PER_PAGE = 10
     POSTS_PER_PAGE=10
+    COMMENT_PER_PAGE=50

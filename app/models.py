@@ -147,7 +147,8 @@ class User(PaginatedAPIMixin, db.Model):
             return None
         return User.query.get(payload.get('user_id'))
     
-
+    #（？）这个“avatar”是一个方法，也没有用Property装饰器修饰，如果别的地方要用到这个avatar的url怎么办？ +
+    # 答：avatar只要有email地址就有一个专属的头像，所以别的地方要用的话就调用这个方法返回头像地址，怎么都不会变的
     def avatar(self,size):
         digest = md5(self.email.lower().encode('utf-8')).hexdigest()
         return 'https://www.gravatar.com/avatar/{}?d=identicon&s={}'.format(digest, size)
@@ -232,20 +233,26 @@ class Comment(PaginatedAPIMixin,db.Model):
     timestamp = db.Column(db.DateTime,index=True,default=datetime.utcnow)
     mark_read=db.Column(db.Boolean,default=False)
     disabled=db.Column(db.Boolean,default=False)
+    #谁评论的？
     author_id = db.Column(db.Integer,db.ForeignKey('users.id'))
     post_id = db.Column(db.Integer,db.ForeignKey('posts.id'))
+    #回复了谁？
     parent_id = db.Column(db.Integer,db.ForeignKey('comments.id',ondelete='CASCADE'))
     #（？）cascade必须定义在“多”的那一侧，db.backref()这个是用方法在文档哪里呢？ -
     # 答：初步参照Relationship Configuration - Adjacency List Relationship
+    #（？）remote_side无法理解。。。
+    #（？）这样的自引用关系无法理解！
     parent = db.relationship('Comment', backref=db.backref('children', cascade='all, delete-orphan'), remote_side=[id])
     def __repr__(self):
         return '<Comment {}>'.format(self.id)
     def get_descendants(self):
         data = set()
-        def descendants(comment):
-            if comment.children:
-                data.update(comment.children)
-            for child in comment.children:
+        def descendants(slf):
+            #如果这条评论有后代
+            if slf.children:
+                data.update(slf.children)
+            #递归后代的后代
+            for child in slf.children:
                 descendants(child)
         descendants(self)
         return data
@@ -256,14 +263,20 @@ class Comment(PaginatedAPIMixin,db.Model):
                 setattr(self,field,data[field])
     def to_dict(self):
         data = {
+            'id':self.id,
             'body':self.body,
             'timestamp':self.timestamp,
             'disabled':self.disabled,
-            'author_id':self.author_id,
             'post_id':self.post_id,
-            'parent_id':self.parent_id,
-            'post':self.post.to_dict(),
-            'author':self.author.to_dict()
+            'parent_id':self.parent_id, #如果有的话就是评论的评论，否则就是顶级评论
+            'post':'pass',
+            #每一个评论的用户信息，表明这条评论是谁评论的
+            'author':{
+                'id':self.author.id,
+                'username':self.author.username,
+                'name':self.author.name,
+                'avatar':self.author.avatar(128)
+            }
         }
         return data
 
