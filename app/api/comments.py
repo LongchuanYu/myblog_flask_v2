@@ -30,6 +30,7 @@ def create_comment():
 @bp.route('/comments',methods=['GET'])
 @token_auth.login_required
 def get_comments():
+    '''Get All Comments'''
     page = request.args.get('page',1,type=int)
     per_page=min(request.args.get(
         'per_page',current_app.config['COMMENT_PER_PAGE'],type=int
