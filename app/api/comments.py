@@ -2,7 +2,7 @@ from flask import request,g,current_app,jsonify
 from app import db
 from app.api import bp
 from app.models import Comment,Post,User
-from app.api.errors import bad_request
+from app.api.errors import bad_request,error_response
 from app.api.auth import token_auth
 
 @bp.route('/comments',methods=['POST'])
@@ -43,3 +43,19 @@ def get_comments():
     )
     return jsonify(data)
     
+@bp.route('/comments/<int:id>',methods=['DELETE'])
+@token_auth.login_required
+def delete_comment(id):
+    '''Delete Comments
+    post作者可以删除所有comment
+    或者
+    comment作者只能删除自己的comment
+    相反
+    既不是post作者也不是comment作者
+    '''
+    comment = Comment.query.get_or_404(id)
+    if g.current_user != comment.author and g.current_user != comment.post.author:
+        return error_response(403)
+    db.session.delete(comment)
+    db.session.commit()
+    return '',204
