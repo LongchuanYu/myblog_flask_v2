@@ -59,3 +59,25 @@ def delete_comment(id):
     db.session.delete(comment)
     db.session.commit()
     return '',204
+@bp.route('/comments/<int:id>',methods=['GET'])
+@token_auth.login_required
+def get_comment(id):
+    '''返回一个comment'''
+    comment = Comment.query.get_or_404(id) 
+    return jsonify(comment.to_dict())
+
+
+@bp.route('/comments/<int:id>',methods=['PUT'])
+@token_auth.login_required
+def update_comment(id):
+    data = request.get_json()
+    comment = Comment.query.get_or_404(id)
+    if not data or not data.get('body',None):
+        return bad_request('Invalid Json Data')
+    if g.current_user != comment.author and g.current_user != comment.post.author:
+        return error_response(403)
+    
+    comment.body = data['body']
+    db.session.commit()
+    return jsonify(comment.to_dict())
+
