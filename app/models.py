@@ -39,7 +39,13 @@ followers = db.Table(
     'followers',
     db.Column('follower_id',db.Integer,db.ForeignKey('users.id')), #我关注了谁？
     db.Column('followed_id',db.Integer,db.ForeignKey('users.id')), #我的粉丝是谁？
-    db.Column('timestamp',db.Integer,default=datetime.utcnow)
+    db.Column('timestamp',db.DateTime,default=datetime.utcnow)
+)
+comments_likes = db.Table(
+    'comments_likes',
+    db.Column('user_id',db.Integer,db.ForeignKey('users.id')),
+    db.Column('comment_id', db.Integer, db.ForeignKey('comments.id')),
+    db.Column('timestamp',db.DateTime,default=datetime.utcnow)
 )
 
 class User(PaginatedAPIMixin, db.Model):
@@ -156,7 +162,7 @@ class User(PaginatedAPIMixin, db.Model):
     def is_following(self,user):
         #（？）这里如何理解？ +
         #   答：功能 -> 我是否关注了user？
-        #   ....在我的关注列表(也就是中间表followers)里面查找id(也就是我关注了谁followed_id)等于user.id的项目
+        #   ....在我的关注列表(followeds)里面查找id(也就是我关注了谁followed_id)等于user.id的项目
         return self.followeds.filter(
             followers.c.followed_id == user.id).count()>0
     def follow(self,user):
@@ -238,11 +244,23 @@ class Comment(PaginatedAPIMixin,db.Model):
     post_id = db.Column(db.Integer,db.ForeignKey('posts.id'))
     #回复了谁？
     parent_id = db.Column(db.Integer,db.ForeignKey('comments.id',ondelete='CASCADE'))
-    #（？）cascade必须定义在“多”的那一侧，db.backref()这个是用方法在文档哪里呢？ -
+    #（？）cascade必须定义在“多”的那一侧，db.backref()这个是用方法在文档哪里呢？ +
     # 答：初步参照Relationship Configuration - Adjacency List Relationship
-    #（？）remote_side无法理解。。。
-    #（？）这样的自引用关系无法理解！
+    #（？）remote_side无法理解。。。 -
+    #（？）这样的自引用关系无法理解！ -
     parent = db.relationship('Comment', backref=db.backref('children', cascade='all, delete-orphan'), remote_side=[id])
+
+    likers = db.relationship(
+        'User',
+        secondary='comments_likes',
+        #（？）查询user点赞过的comment，这里user_id怎么获得呢？ +
+        # 答：我kao，需求不用查询user点赞过的comment，所以不需要primaryjoin了。。。
+        # primaryjoin=(comments_likes.c.user_id == self.post.author_id)
+        secondaryjoin=(comments_likes.c.comment_id == id),
+        backref=db.backref('liked_comments',lazy='dynamic')
+    )
+
+
     def __repr__(self):
         return '<Comment {}>'.format(self.id)
     def get_descendants(self):
@@ -277,16 +295,29 @@ class Comment(PaginatedAPIMixin,db.Model):
                 'name':self.author.name,
                 'avatar':self.author.avatar(128)
             }
+            #'likes':self.liked_count
         }
         return data
-
-
-
-
-
-
-
-
+    def is_liked_by(self,user):
+        #（？）搞了半天左边和右边都是类似于python List的东西。 -
+        # 而且这里likers并没有定义左右，我们可以通过变量名字来区别。
+        # return self.likers.filter(
+        #     comments_likes.c.user_id == user.id).count()>0
+        return user in self.likers
+    def liked_by(self,user):
+        '''user点赞了这个comment'''
+        print(self.is_liked_by(user))
+        if not self.is_liked_by(user):
+            self.likers.append(user)
+    def unliked_by(self,user):
+        '''user取消点赞这个comment'''
+        if self.is_liked_by(user):
+            self.likers.remove(user)
+    # @property
+    # def liked_count(self):
+    #     return self.liked_comments.filter(
+    #         comments_likes.c.comment_id == id
+    #     ).count()
 
 
 

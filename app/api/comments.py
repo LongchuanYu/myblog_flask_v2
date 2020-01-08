@@ -81,3 +81,31 @@ def update_comment(id):
     db.session.commit()
     return jsonify(comment.to_dict())
 
+###
+# Star
+###
+@bp.route('/comments/<int:id>/like',methods=['GET'])
+@token_auth.login_required
+def like_comment(id):
+    '''点赞'''
+    comment = Comment.query.get_or_404(id)
+    comment.liked_by(g.current_user)
+    db.session.add(comment)
+    db.session.commit()
+    return jsonify({
+        'status':'success',
+        'message':'like it.'
+    })
+
+@bp.route('/comments/<int:id>/unlike',methods=['GET'])
+@token_auth.login_required
+def unlike_comment(id):
+    '''取消点赞'''
+    comment = Comment.query.get_or_404(id)
+    comment.unliked_by(g.current_user)
+    db.session.add(comment)
+    db.session.commit()
+    return jsonify({
+        'status':'success',
+        'message':'Unlike it.'
+    })
