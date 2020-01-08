@@ -252,11 +252,14 @@ class Comment(PaginatedAPIMixin,db.Model):
 
     likers = db.relationship(
         'User',
-        secondary='comments_likes',
+        #（？）报错Can't execute sync rule for source column 'comments.id'怎么办？ -
+        # 神tm这里用了单引号！！！secondary='comments_likes'
+        # secondaryjoin也不需要！为什么？
+        secondary=comments_likes,
         #（？）查询user点赞过的comment，这里user_id怎么获得呢？ +
         # 答：我kao，需求不用查询user点赞过的comment，所以不需要primaryjoin了。。。
         # primaryjoin=(comments_likes.c.user_id == self.post.author_id)
-        secondaryjoin=(comments_likes.c.comment_id == id),
+        # secondaryjoin=(comments_likes.c.comment_id == id),
         backref=db.backref('liked_comments',lazy='dynamic')
     )
 
@@ -294,8 +297,8 @@ class Comment(PaginatedAPIMixin,db.Model):
                 'username':self.author.username,
                 'name':self.author.name,
                 'avatar':self.author.avatar(128)
-            }
-            #'likes':self.liked_count
+            },
+            'likes':self.liked_count
         }
         return data
     def is_liked_by(self,user):
@@ -304,20 +307,21 @@ class Comment(PaginatedAPIMixin,db.Model):
         # return self.likers.filter(
         #     comments_likes.c.user_id == user.id).count()>0
         return user in self.likers
+
+
     def liked_by(self,user):
         '''user点赞了这个comment'''
-        print(self.is_liked_by(user))
         if not self.is_liked_by(user):
             self.likers.append(user)
+
+
     def unliked_by(self,user):
         '''user取消点赞这个comment'''
         if self.is_liked_by(user):
             self.likers.remove(user)
-    # @property
-    # def liked_count(self):
-    #     return self.liked_comments.filter(
-    #         comments_likes.c.comment_id == id
-    #     ).count()
+    @property
+    def liked_count(self):
+        return [user.id for user in self.likers]
 
 
 
