@@ -60,6 +60,9 @@ class User(PaginatedAPIMixin, db.Model):
     about_me = db.Column(db.Text())
     member_since = db.Column(db.DateTime(), default=datetime.utcnow)
     last_seen = db.Column(db.DateTime(), default=datetime.utcnow)
+    last_recived_comments_read_time = db.Column(db.DateTime)
+
+
     comments = db.relationship('Comment',backref='author',lazy='dynamic',cascade='all,delete-orphan')
     posts = db.relationship('Post',backref='author',
         lazy='dynamic',cascade='all,delete-orphan')
@@ -108,6 +111,7 @@ class User(PaginatedAPIMixin, db.Model):
                 'self': url_for('/api.get_user', id=self.id),
                 'avatar': self.avatar(128)
             }
+
         }
         if include_email:
             data['email'] = self.email
@@ -257,7 +261,7 @@ class Comment(PaginatedAPIMixin,db.Model):
         # secondaryjoin也不需要！为什么？
         secondary=comments_likes,
         #（？）查询user点赞过的comment，这里user_id怎么获得呢？ +
-        # 答：我kao，需求不用查询user点赞过的comment，所以不需要primaryjoin了。。。
+        # 答：自我引用才需要primaryjoin和secondaryjoin！
         # primaryjoin=(comments_likes.c.user_id == self.post.author_id)
         # secondaryjoin=(comments_likes.c.comment_id == id),
         backref=db.backref('liked_comments',lazy='dynamic')
@@ -298,12 +302,12 @@ class Comment(PaginatedAPIMixin,db.Model):
                 'name':self.author.name,
                 'avatar':self.author.avatar(128)
             },
-            'likes':self.liked_count
+            'likers_id':self.liked_count
         }
         return data
     def is_liked_by(self,user):
-        #（？）搞了半天左边和右边都是类似于python List的东西。 -
-        # 而且这里likers并没有定义左右，我们可以通过变量名字来区别。
+        #（？）为什么followeds是可查询对象，而这里的likers则是列表？ +
+        # followeds定义了dynamic，而likers没有。详见博客园文章。
         # return self.likers.filter(
         #     comments_likes.c.user_id == user.id).count()>0
         return user in self.likers

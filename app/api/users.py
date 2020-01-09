@@ -4,7 +4,7 @@ from app import db
 from app.api import bp
 from flask import request,jsonify,url_for,current_app,g
 from app.api.errors import bad_request
-from app.models import User,Post
+from app.models import User,Post,Comment
 from app.api.auth import token_auth
 @bp.route('/users',methods =['POST'])
 def create_user():
@@ -239,3 +239,14 @@ def get_user_posts(id):
         user.posts.order_by(Post.timestamp.desc()), page, per_page,
         '/api.get_user_posts', id=id)
     return jsonify(data)
+
+
+
+@bp.route('/users/<int:id>/comments',methods=['GET'])
+@token_auth.login_required
+def get_user_comments(id):
+    user = User.query.get_or_404(id)
+    page = 1
+    per_page=5
+    data = user.comments.order_by(Comment.timestamp.desc()).paginate(page,per_page,False)
+    return 'jsonify(data)'
