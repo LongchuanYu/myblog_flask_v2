@@ -3,7 +3,7 @@ from datetime import datetime
 from app import db
 from app.api import bp
 from flask import request,jsonify,url_for,current_app,g
-from app.api.errors import bad_request
+from app.api.errors import bad_request,error_response
 from app.models import User,Post,Comment
 from app.api.auth import token_auth
 @bp.route('/users',methods =['POST'])
@@ -245,8 +245,46 @@ def get_user_posts(id):
 @bp.route('/users/<int:id>/comments',methods=['GET'])
 @token_auth.login_required
 def get_user_comments(id):
+    '''返回用户的所有评论'''
     user = User.query.get_or_404(id)
-    page = 1
-    per_page=5
-    data = user.comments.order_by(Comment.timestamp.desc()).paginate(page,per_page,False)
-    return 'jsonify(data)'
+    page = request.args.get('page',1,type=int)
+    per_page = min(
+        request.args.get('per_page',current_app.config['COMMENT_PER_PAGE'],type=int),
+        100
+    )
+    data = Comment.to_collection_dict(user.comments.order_by(Comment.timestamp.desc()),page,per_page,'/api.get_user_comments',id=id)
+    return jsonify(data)
+
+@bp.route('/users/<int:id>/recived-comments/',methods=['GET'])
+@token_auth.login_required
+def get_user_recived_comments(id):
+    '''获取用户收到的评论，仅文章内的评论'''
+    user = User.query.get_or_404(id)
+    page = request.args.get('page',1,type=int)
+    per_page = min(
+        request.args.get('per_page',current_app.config['COMMENT_PER_PAGE'],type=int),
+        100
+    )
+    if not user:
+        return bad_request('User not found.')
+    ###
+    # 1.获取自己的所有文章
+    # 2.获取所有的评论
+    # 3.筛选出所有评论的文章id == 自己的所有文章id
+    # 4.即可获得别人对我的所有评论
+    ###
+    mypostid = [post.id for post in user.posts]
+    data = Comment.to_collection_dict(Comment.query.filter(
+        Comment.post_id.in_(mypostid)
+    ).order_by(Comment.timestamp.desc()),page,per_page,'/api.get_user_recived_comments',id=id)
+
+    #为每一个评论添加是否是新消息的标签
+    last_read_time = user.last_recived_comments_read_time or datetime(1990,1,1)
+    for item in data['items']:
+        if item['timestamp'] > last_read_time :
+            item['is_new']=True
+    
+    user.last_recived_comments_read_time = datetime.utcnow()
+    db.session.commit()
+
+    return jsonify(data)
