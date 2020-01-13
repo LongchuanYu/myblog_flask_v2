@@ -294,7 +294,10 @@ class Comment(PaginatedAPIMixin,db.Model):
             'disabled':self.disabled,
             'post_id':self.post_id,
             'parent_id':self.parent_id, #如果有的话就是评论的评论，否则就是顶级评论
-            'post':'pass',
+            'post':{
+                'id':self.post_id,
+                'title':self.post.title
+            },
             #每一个评论的用户信息，表明这条评论是谁评论的
             'author':{
                 'id':self.author.id,

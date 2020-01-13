@@ -1,6 +1,7 @@
 from app import create_app,db
 from app.models import User
-app = create_app()
+from config import Config
+app = create_app(Config)
 
 @app.cli.command()
 def test():
@@ -20,3 +21,5 @@ def make_shell_context():
         'db':db,
         'User':User
     }
+if __name__=='__main__':
+    app.run(debug=True)
