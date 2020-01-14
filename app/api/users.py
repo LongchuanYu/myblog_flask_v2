@@ -4,7 +4,7 @@ from app import db
 from app.api import bp
 from flask import request,jsonify,url_for,current_app,g
 from app.api.errors import bad_request,error_response
-from app.models import User,Post,Comment
+from app.models import User,Post,Comment,Notification
 from app.api.auth import token_auth
 @bp.route('/users',methods =['POST'])
 def create_user():
@@ -285,6 +285,16 @@ def get_user_recived_comments(id):
             item['is_new']=True
     
     user.last_recived_comments_read_time = datetime.utcnow()
+    user.add_notification('unread_recived_comments_count', 0)
     db.session.commit()
 
     return jsonify(data)
+
+@bp.route('/users/<int:id>/notifications',methods=['GET'])
+@token_auth.login_required
+def get_user_notifications(id):
+    '''获取用户的最新通知'''
+    user = User.query.get_or_404(id)
+    if not user:
+        return error_response(403)
+    return '',404

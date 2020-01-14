@@ -1,6 +1,7 @@
-import base64,os,jwt
+import base64,os,jwt,json
 from app import db
 from hashlib import md5
+from time import time
 from flask import url_for,current_app
 from werkzeug.security import generate_password_hash,check_password_hash
 from datetime import datetime,timedelta
@@ -82,6 +83,9 @@ class User(PaginatedAPIMixin, db.Model):
         lazy='dynamic'
     )
 
+    notifications = db.relationship('Notification',backref='user',
+        lazy='dynamic', cascade='all, delete-orphan')
+
     #（？）这一段一致不理解 +
     #   打印User对象的时候返回，比如print(User()) -> <User ly1>
     def __repr__(self):
@@ -128,7 +132,7 @@ class User(PaginatedAPIMixin, db.Model):
                 setattr(self,field,data[field])
         if new_user and 'password' in data:
             self.set_password(data['password'])
-    def get_jwt(self,expires_in=9000):
+    def get_jwt(self,expires_in=28800):
         now = datetime.utcnow()
         payload = {
             'user_id':self.id,
@@ -198,6 +202,21 @@ class User(PaginatedAPIMixin, db.Model):
         return followed.order_by(Post.timestamp.desc())
 
 
+    def add_notification(self,name,data):
+        '''
+        name：通知类型
+        data：通知内容
+        '''
+        #新增一个通知
+        n = Notification(name=name,payload=json.dumps(data),user=self)
+        db.session.add(n)
+        #（？）新增通知后应该返回什么？
+        return n
+
+
+
+
+### ------------------------------------------------------------------------------------------------------------User End
 
 class Post(PaginatedAPIMixin,db.Model):
     __tablename__='posts'
@@ -234,7 +253,7 @@ class Post(PaginatedAPIMixin,db.Model):
         }
         return data
 
-
+### ------------------------------------------------------------------------------------------------------------Post End
 
 class Comment(PaginatedAPIMixin,db.Model):
     __tablename__='comments'
@@ -330,11 +349,34 @@ class Comment(PaginatedAPIMixin,db.Model):
     def liked_count(self):
         return [user.id for user in self.likers]
 
+### ------------------------------------------------------------------------------------------------------------Comment End
 
+class Notification(db.Model):  # 不需要分页
+    __tablename__ = 'notifications'
+    id = db.Column(db.Integer, primary_key=True)
+    #消息类型
+    name = db.Column(db.String(128), index=True)
+    #消息所在的用户id
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    ##
+    # user relationship：消息所在的用户对象
+    ##
+    timestamp = db.Column(db.Float, index=True, default=time)
+    payload_json = db.Column(db.Text)
 
-
-
-
+    def __repr__(self):
+        return "<Notification {}>".format(self.id)
+    def to_dict(self):
+        data = {
+            'id':self.id,
+            'name':self.name,
+            'user':{
+                'id':self.user_id,
+                'username':self.user.username,
+            }
+        }
+    def from_dict(self):
+        pass
 
 
 

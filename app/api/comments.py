@@ -18,6 +18,10 @@ def create_comment():
         return bad_request('Post id is required.')
     print(int(data.get('post_id')))
     post = Post.query.get_or_404(int(data.get('post_id')))
+    commentcount = post.comments.all()
+    return '111'
+    # 新增评论的时候把通知写入db
+    post.author.add_notification('unread_recived_comments_count')
     comment = Comment()
     comment.from_dict(data)
     comment.author = g.current_user
@@ -56,6 +60,9 @@ def delete_comment(id):
     comment = Comment.query.get_or_404(id)
     if g.current_user != comment.author and g.current_user != comment.post.author:
         return error_response(403)
+    # 给文章作者发送新评论通知(需要自动减1)
+    comment.post.author.add_notification('unread_recived_comments_count',
+                                         comment.post.author.new_recived_comments())
     db.session.delete(comment)
     db.session.commit()
     return '',204
