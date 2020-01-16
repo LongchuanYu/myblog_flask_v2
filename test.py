@@ -1,3 +1,3 @@
-import json,time
-ret = time.time()
-print(ret)
+import json
+ret= '0'
+print(json.dumps(ret))

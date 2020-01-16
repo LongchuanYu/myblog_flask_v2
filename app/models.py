@@ -201,14 +201,22 @@ class User(PaginatedAPIMixin, db.Model):
         # return followed.union(own).order_by(Post.timestamp.desc())
         return followed.order_by(Post.timestamp.desc())
 
-
+    def new_recived_comments(self):
+        '''当前用户发布的文章下新评论总数'''
+        user_posts_ids = [post.id for post in self.posts]
+        last_read_time = self.last_recived_comments_read_time or datetime(1990,1,1)
+        recived_comment_count = Comment.query.filter(
+            Comment.post_id.in_(user_posts_ids) , Comment.timestamp > last_read_time
+        ).count()
+        return recived_comment_count
     def add_notification(self,name,data):
         '''
         name：通知类型
         data：通知内容
         '''
+        self.notifications.filter_by(name=name).delete()
         #新增一个通知
-        n = Notification(name=name,payload=json.dumps(data),user=self)
+        n = Notification(name=name,payload_json=json.dumps(data),user=self)
         db.session.add(n)
         #（？）新增通知后应该返回什么？
         return n
@@ -373,8 +381,10 @@ class Notification(db.Model):  # 不需要分页
             'user':{
                 'id':self.user_id,
                 'username':self.user.username,
-            }
+            },
+            'payload_json':self.payload_json   
         }
+        return data
     def from_dict(self):
         pass
 

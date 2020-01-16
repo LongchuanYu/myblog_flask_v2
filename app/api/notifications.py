@@ -6,7 +6,7 @@ from app.models import Notification
 @bp.route('/notifications/<int:id>', methods=['GET'])
 @token_auth.login_required
 def get_notification(id):
-    '''返回一个用户通知'''
+    '''返回一个通知'''
     notification = Notification.query.get_or_404(id)
     if g.current_user != notification.user:
         return error_response(403)

@@ -16,18 +16,18 @@ def create_comment():
         return bad_request('Body is required.')
     if not 'post_id' in data or not data.get('post_id'):
         return bad_request('Post id is required.')
-    print(int(data.get('post_id')))
     post = Post.query.get_or_404(int(data.get('post_id')))
-    commentcount = post.comments.all()
-    return '111'
-    # 新增评论的时候把通知写入db
-    post.author.add_notification('unread_recived_comments_count')
+
     comment = Comment()
     comment.from_dict(data)
     comment.author = g.current_user
     comment.post= post
     db.session.add(comment)
     db.session.commit()
+    # 新增评论的时候把通知写入db
+    post.author.add_notification('unread_recived_comments_count',post.author.new_recived_comments())
+    db.session.commit()
+
     response = comment.to_dict()
     return response
 
