@@ -382,7 +382,8 @@ class Notification(db.Model):  # 不需要分页
                 'id':self.user_id,
                 'username':self.user.username,
             },
-            'payload_json':self.payload_json   
+            'timestamp':self.timestamp,
+            'payload_json':json.loads(str(self.payload_json))
         }
         return data
     def from_dict(self):

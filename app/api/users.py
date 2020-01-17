@@ -305,9 +305,7 @@ def get_user_notifications(id):
     since = request.args.get('since',0,type=float)
     if not user:
         return error_response(403)
-    notes = user.notifications.filter(
-        Notification.timestamp>since
-    ).order_by(
+    notes = user.notifications.order_by(
         Notification.timestamp.desc()
     )
     return jsonify([note.to_dict() for note in notes])
