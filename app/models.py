@@ -61,8 +61,12 @@ class User(PaginatedAPIMixin, db.Model):
     about_me = db.Column(db.Text())
     member_since = db.Column(db.DateTime(), default=datetime.utcnow)
     last_seen = db.Column(db.DateTime(), default=datetime.utcnow)
-    last_recived_comments_read_time = db.Column(db.DateTime)
 
+    last_recived_comments_read_time = db.Column(db.DateTime)
+    # 用户最后一次查看 用户的粉丝 页面的时间，用来判断哪些粉丝是新的
+    last_follows_read_time = db.Column(db.DateTime)
+    # 用户最后一次查看 收到的点赞 页面的时间，用来判断哪些点赞是新的
+    last_likes_read_time = db.Column(db.DateTime)
 
     comments = db.relationship('Comment',backref='author',lazy='dynamic',cascade='all,delete-orphan')
     posts = db.relationship('Post',backref='author',
@@ -178,6 +182,7 @@ class User(PaginatedAPIMixin, db.Model):
             #（？）这里followeds字段是列表吗？为什么可以用append？ +
             #   答：参照SQLAlchemy文档-Working with Related Objects
             #   ....它可以是各种collection types，默认是Python List
+
             self.followeds.append(user)
     def unfollow(self,user):
         if self.is_following(user):
@@ -200,7 +205,7 @@ class User(PaginatedAPIMixin, db.Model):
         # own = Post.query.filter_by(user_id=self.id)
         # return followed.union(own).order_by(Post.timestamp.desc())
         return followed.order_by(Post.timestamp.desc())
-
+#-------------------------------------------------------------------通知类
     def new_recived_comments(self):
         '''当前用户发布的文章下新评论总数'''
         user_posts_ids = [post.id for post in self.posts]
@@ -209,6 +214,9 @@ class User(PaginatedAPIMixin, db.Model):
             Comment.post_id.in_(user_posts_ids) , Comment.timestamp > last_read_time
         ).count()
         return recived_comment_count
+    def new_follows(self):
+        '''获取新粉丝总数'''
+        
     def add_notification(self,name,data):
         '''
         name：通知类型
@@ -220,7 +228,8 @@ class User(PaginatedAPIMixin, db.Model):
         db.session.add(n)
         #（？）新增通知后应该返回什么？
         return n
-
+    def new_follows(self):
+        return self.followers.all()
 
 
 

@@ -129,6 +129,8 @@ def follow(id):
     if g.current_user.is_following(user):
         return bad_request('You have already followed that user.')
     g.current_user.follow(user)
+    #关注别人的时候给对方通知
+    
     db.session.commit()
     return jsonify({
         'status': 'success',
@@ -153,11 +155,12 @@ def unfollow(id):
 
 
 '''
-    返回关注了谁列表和我的粉丝列表
+    返回关注了谁列表和我的粉丝列表----------------------------------------------------------------------
 '''
 @bp.route('/users/<int:id>/followeds/', methods=['GET'])
 @token_auth.login_required
 def get_followeds(id):
+    '''获取用户关注列表'''
     user = User.query.get_or_404(id)
     page = request.args.get('page', 1, type=int)
     per_page = min(request.args.get(
@@ -195,6 +198,7 @@ def get_followeds(id):
 @bp.route('/users/<int:id>/followers/', methods=['GET'])
 @token_auth.login_required
 def get_followers(id):
+    '''获取用户粉丝列表'''
     user = User.query.get_or_404(id)
     page = request.args.get('page', 1, type=int)
     per_page = min(
@@ -202,16 +206,20 @@ def get_followers(id):
             'per_page', current_app.config['USERS_PER_PAGE'], type=int), 100)
     data = User.to_collection_dict(
         user.followers, page, per_page, '/api.get_followers', id=id)
+    last_follows_read_time = user.last_follows_read_time or datetime(1990,1,1)
     # 为每个 follower 添加 is_following 标志位
     for item in data['items']:
         item['is_following'] = g.current_user.is_following(
             User.query.get(item['id']))
         # 获取 follower 开始关注该用户的时间
+        #（？）这里，为什么要用这么奇葩的方式查找数据库呢？ -
         res = db.engine.execute(
             "select * from followers where follower_id={} and followed_id={}".
             format(item['id'], user.id))
         item['timestamp'] = datetime.strptime(
             list(res)[0][2], '%Y-%m-%d %H:%M:%S.%f')
+        if item['timestamp']>last_follows_read_time:
+            item['is_new'] = True
     return jsonify(data)
 
 # 返回关注的人的文章列表
@@ -290,11 +298,44 @@ def get_user_recived_comments(id):
         if item['timestamp'] > last_read_time:
             item['is_new'] = True
 
-    user.last_recived_comments_read_time = datetime.utcnow()
-    user.add_notification('unread_recived_comments_count', 0)
-    db.session.commit()
+    # user.last_recived_comments_read_time = datetime.utcnow()
+    # user.add_notification('unread_recived_comments_count', 0)
+    
 
     return jsonify(data)
+
+@bp.route('/users/<int:id>/clear-notifications/',methods=['GET'])
+@token_auth.login_required
+def clear_comments(id):
+    user = User.query.get_or_404(id)
+    if not user:
+        return bad_request('User not found.')
+    type = request.args.get('type',0,type=int)
+    if type is None:
+        return bad_request('Error: clear type is Null..')
+    if type<0 or type>3:
+        return error_response(404)
+    if type==0:
+        #comments
+        user.last_recived_comments_read_time = datetime.utcnow()
+        user.add_notification('unread_recived_comments_count', 0)
+    elif type==1:
+        #私信
+        pass
+    elif type==2:
+        #新粉丝
+        user.last_follows_read_time = datetime.utcnow()
+        user.add_notification('unread_follows_count', 0)
+    elif type==3:
+        #收到的赞
+        pass
+    db.session.commit()
+    return jsonify({
+        'status':'ok',
+        'message':'clear comments ok.'
+    })
+
+
 
 
 @bp.route('/users/<int:id>/notifications', methods=['GET'])
