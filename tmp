@@ -1,0 +1,52 @@
+def get_user_recived_comments_likes(id):
+    '''返回该用户收到的评论赞'''
+    # （？）点赞在comment_likes表（拿不到），评论在comments表（可以拿到）,如何获得用户收到的评论赞呢？ +
+    # 答:comment_likes表拿不到？你导入啊！！
+    user = User.query.get_or_404(id)
+    page = request.args.get('page',1,type=int)
+    per_page = request.args.get('per_page',5,type=int)
+    last_read_time = user.last_likes_read_time or datetime(1990,1,1)
+    user_all_likes_comments = user.comments.join(
+        comments_likes,
+    ).paginate(page,per_page)
+    # （？）取得的数据是comment对象，并不知道谁点赞了这个comment，因为数据格式是likers[1,2] +
+    #  表明这个comment的点赞对象是user1、user2，如何获得点赞对象的username呢？ 
+    # 答：没办法，只有迭代user_all_likes_comments和likers数组，拆开来。
+    # （？）这种分页方式会出现问题，同一个comment被不同用户点赞后，分页还是1个，1页。如何解决？ -
+    # 答：
+    data = {
+        'items':[],
+        '_meta':{
+            'page':page,
+            'per_page':per_page,
+            'total_pages':user_all_likes_comments.pages,
+            'total_items':user_all_likes_comments.total
+        },
+        '_links':{
+            'next':url_for(
+                '/api.get_user_recived_comments_likes',page=page+1,per_page=per_page,id=id
+            ) if user_all_likes_comments.has_next else None,
+            'prev':url_for(
+                '/api.get_user_recived_comments_likes',page=page-1,per_page=per_page,id=id
+            ) if user_all_likes_comments.has_prev else None,
+            'self':url_for('/api.get_user_recived_comments_likes',page=page,per_page=per_page,id=id)
+        },
+
+    }
+    for item in user_all_likes_comments.items:
+        # item是一个comment对象
+        for liker in item.likers:
+            t = {}
+            t['like_from_user'] = liker.to_dict()
+            t['like_to_comment'] = item.to_dict()
+            # 通过sql语句在中间表comments_likes中查找timestamp，加入进去
+            res = db.engine.execute(
+                "select * from comments_likes where user_id={} and comment_id={}"
+                .format(liker.id,item.id)
+            )
+            t['timestamp'] = datetime.strptime(list(res)[0][2], '%Y-%m-%d %H:%M:%S.%f')
+            if t['timestamp']>last_read_time:
+                t['is_new']=True
+            data['items'].append(t)
+    data['items'] = sorted(data['items'],key=itemgetter('timestamp'),reverse=True)
+    return jsonify(data)

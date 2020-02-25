@@ -1,11 +1,13 @@
-import re
+import re,math
+from operator import itemgetter
 from datetime import datetime
 from app import db
 from app.api import bp
 from flask import request, jsonify, url_for, current_app, g
 from app.api.errors import bad_request, error_response
-from app.models import User, Post, Comment, Notification
+from app.models import User, Post, Comment, Notification,comments_likes
 from app.api.auth import token_auth
+from sqlalchemy import or_,and_
 @bp.route('/users', methods=['POST'])
 def create_user():
     # 注册
@@ -130,7 +132,10 @@ def follow(id):
         return bad_request('You have already followed that user.')
     g.current_user.follow(user)
     #关注别人的时候给对方通知
-    
+    user.add_notification(
+        'unread_follows_count',
+        user.new_follows()
+    )
     db.session.commit()
     return jsonify({
         'status': 'success',
@@ -147,6 +152,7 @@ def unfollow(id):
     if not g.current_user.is_following(user):
         return bad_request('You are not following this user.')
     g.current_user.unfollow(user)
+    user.add_notification('unread_follows_count',user.new_follows())
     db.session.commit()
     return jsonify({
         'status': 'success',
@@ -167,6 +173,8 @@ def get_followeds(id):
         'per_page', current_app.config['USERS_PER_PAGE'], type=int), 100)
     # （？）怎么理解user.followeds ？ +
     # 答：查询user关注了谁，user.followeds返回了一个查询结果，经过to_collection_dict()实现分页
+    # （？）这里的user.followeds如何排序呢？用的是中间表，不知如何排序。。 -
+    # 答：
     data = User.to_collection_dict(
         user.followeds, page, per_page, '/api.get_followeds', id=id)
 
@@ -184,14 +192,16 @@ def get_followeds(id):
         # （？）如何理解db.engine.execute？ +
         # 答：调查了文档，engine.execute执行给定的结构语句，返回一个ResultProxy。
         #   ResultProxy是一个包装了DB-API的指针对象，我们可以通过它轻易的访问行和列
-        #   简而言之就是返回了一个二维数组* ，描述了返回结果的表。
-        # （？）为什么返回的res可以列表化？ +
-        # 答：请查看上面问题的回答
+        #   简而言之就是返回了一个二维数组(*有误) ，描述了返回结果的表。
+        # （？）为什么返回的res可以列表化？ -
+        # 答：请查看上面问题的回答，但是我还没有完全消化。
         res = db.engine.execute(
             "select * from followers where follower_id={} and followed_id={}".
             format(user.id, item['id']))
         item['timestamp'] = datetime.strptime(
             list(res)[0][2], '%Y-%m-%d %H:%M:%S.%f')
+    #按时间排序
+    data['items']=sorted(data['items'],key=itemgetter('timestamp'), reverse=True)
     return jsonify(data)
 
 
@@ -212,14 +222,18 @@ def get_followers(id):
         item['is_following'] = g.current_user.is_following(
             User.query.get(item['id']))
         # 获取 follower 开始关注该用户的时间
-        #（？）这里，为什么要用这么奇葩的方式查找数据库呢？ -
+        #（？）这里，为什么要用这么奇葩的方式查找数据库呢？ +
+        # 答：每一次循环都会查询一次数据库，用sql语句执行可以提升性能
         res = db.engine.execute(
             "select * from followers where follower_id={} and followed_id={}".
-            format(item['id'], user.id))
+            format(item['id'], user.id)
+        )
         item['timestamp'] = datetime.strptime(
-            list(res)[0][2], '%Y-%m-%d %H:%M:%S.%f')
+            list(res)[0][2], '%Y-%m-%d %H:%M:%S.%f'
+        )
         if item['timestamp']>last_follows_read_time:
             item['is_new'] = True
+    data['items'] = sorted(data['items'], key=itemgetter('timestamp'), reverse=True)
     return jsonify(data)
 
 # 返回关注的人的文章列表
@@ -270,7 +284,9 @@ def get_user_comments(id):
 @bp.route('/users/<int:id>/recived-comments/', methods=['GET'])
 @token_auth.login_required
 def get_user_recived_comments(id):
-    '''获取用户收到的评论，仅文章内的评论'''
+    '''获取用户收到的评论 和 回复'''
+    #（？）获取用户收到的评论，现在A发了A的文章下发表了评论，如果评论下面c回复了b，那么只有A能收到消息，b却收不到，如何解决？ -
+    # 答：
     user = User.query.get_or_404(id)
     page = request.args.get('page', 1, type=int)
     per_page = min(
@@ -281,19 +297,22 @@ def get_user_recived_comments(id):
     if not user:
         return bad_request('User not found.')
     ###
-    # 1.获取自己的所有文章
-    # 2.获取所有的评论
-    # 3.筛选出所有评论的文章id == 自己的所有文章id
-    # 4.即可获得别人对我的所有评论
+    # 1.获取用户的所有文章mypostid
+    # 2.获取用户所有的评论mycommentid
+    # 3.在comment表中筛选出，用户所有文章中的非回复评论 或者 回复我的
+    # 
     ###
     mypostid = [post.id for post in user.posts]
+    mycommentid = [comment.id for comment in user.comments]
     data = Comment.to_collection_dict(Comment.query.filter(
-        Comment.post_id.in_(mypostid)
+        or_(
+            and_(Comment.post_id.in_(mypostid) , Comment.parent_id == None),
+            Comment.parent_id.in_(mycommentid)
+        )
     ).order_by(Comment.timestamp.desc()), page, per_page, '/api.get_user_recived_comments', id=id)
 
     # 为每一个评论添加是否是新消息的标签
-    last_read_time = user.last_recived_comments_read_time or datetime(
-        1990, 1, 1)
+    last_read_time = user.last_recived_comments_read_time or datetime(1990, 1, 1)
     for item in data['items']:
         if item['timestamp'] > last_read_time:
             item['is_new'] = True
@@ -303,6 +322,74 @@ def get_user_recived_comments(id):
     
 
     return jsonify(data)
+@bp.route('/users/<int:id>/recived-comments-likes/', methods=['GET'])
+@token_auth.login_required
+def get_user_recived_comments_likes(id):
+    '''返回该用户收到的评论赞'''
+    # （？）点赞在comment_likes表（拿不到），评论在comments表（可以拿到）,如何获得用户收到的评论赞呢？ +
+    # 答:comment_likes表拿不到？你导入啊！！
+    user = User.query.get_or_404(id)
+    page = request.args.get('page',1,type=int)
+    per_page = request.args.get('per_page',5,type=int)
+    if page<1:
+        return error_response(404)
+    if per_page<1:
+        return error_response(404)
+    last_read_time = user.last_likes_read_time or datetime(1990,1,1)
+    user_all_likes_comments = user.comments.join(
+        comments_likes,
+    ).all()
+    # （？）取得的数据是comment对象，并不知道谁点赞了这个comment，因为数据格式是likers[1,2] +
+    #  表明这个comment的点赞对象是user1、user2，如何获得点赞对象的username呢？ 
+    # 答：没办法，只有迭代user_all_likes_comments和likers数组，拆开来。
+    # （？）这种分页方式会出现问题，同一个comment被不同用户点赞后，分页还是1个，1页。如何解决？ -
+    # 答：算了，手动写分页功能。。
+    data = {
+        'items':[],
+        '_meta':'',
+        '_links':'',
+
+    }
+    for item in user_all_likes_comments:
+        # item是一个comment对象
+        for liker in item.likers:
+            t = {}
+            t['like_from_user'] = liker.to_dict()
+            t['like_to_comment'] = item.to_dict()
+            # 通过sql语句在中间表comments_likes中查找timestamp，加入进去
+            res = db.engine.execute(
+                "select * from comments_likes where user_id={} and comment_id={}"
+                .format(liker.id,item.id)
+            )
+            t['timestamp'] = datetime.strptime(list(res)[0][2], '%Y-%m-%d %H:%M:%S.%f')
+            if t['timestamp']>last_read_time:
+                t['is_new']=True
+            data['items'].append(t)
+
+    # 分页
+    total_items = len(data['items'])
+    total_pages = math.ceil(total_items / per_page)
+    data['_meta'] = {
+        'page':page,
+        'per_page':per_page,
+        'total_pages':total_pages,
+        'total_items':total_items
+    }
+    data['_links'] = {
+        'next':'',
+        'prev':'',
+        'self':''
+    }
+
+    data['items'] = sorted(data['items'],key=itemgetter('timestamp'),reverse=True)
+    data['items'] = data['items'][(page-1)*per_page : page*per_page]
+    return jsonify(data)
+
+    
+
+
+
+
 
 @bp.route('/users/<int:id>/clear-notifications/',methods=['GET'])
 @token_auth.login_required
@@ -328,7 +415,8 @@ def clear_comments(id):
         user.add_notification('unread_follows_count', 0)
     elif type==3:
         #收到的赞
-        pass
+        user.last_likes_read_time = datetime.utcnow()
+        user.add_notification('unread_likes_count',0)
     db.session.commit()
     return jsonify({
         'status':'ok',
@@ -351,3 +439,11 @@ def get_user_notifications(id):
     )
     return jsonify([note.to_dict() for note in notes])
     
+@bp.route('/users/<int:id>/test',methods=['GET'])
+@token_auth.login_required
+def test(id):
+    user = User.query.get_or_404(id)
+    ret = user.new_follows()
+    return jsonify({
+        'rel':'1'
+    })

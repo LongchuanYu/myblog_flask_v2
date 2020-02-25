@@ -17,7 +17,6 @@ def create_comment():
     if not 'post_id' in data or not data.get('post_id'):
         return bad_request('Post id is required.')
     post = Post.query.get_or_404(int(data.get('post_id')))
-
     comment = Comment()
     comment.from_dict(data)
     comment.author = g.current_user
@@ -25,9 +24,15 @@ def create_comment():
     db.session.add(comment)
     db.session.commit()
     # 新增评论的时候把通知写入db
-    post.author.add_notification('unread_recived_comments_count',post.author.new_recived_comments())
+    if data.get('parent_id'):
+        #是回复就通知回复的对象
+        reply_comment = Comment.query.get_or_404(int(data.get('parent_id')))
+        reply_comment.author.add_notification('unread_recived_comments_count',reply_comment.author.new_recived_comments())
+    else:
+        #是评论就通知文章作者，。
+        print('评论')
+        post.author.add_notification('unread_recived_comments_count',post.author.new_recived_comments())
     db.session.commit()
-
     response = comment.to_dict()
     return response
 
@@ -94,9 +99,15 @@ def update_comment(id):
 @bp.route('/comments/<int:id>/like',methods=['GET'])
 @token_auth.login_required
 def like_comment(id):
-    '''点赞'''
+    '''当前用户来点赞这个评论'''
     comment = Comment.query.get_or_404(id)
     comment.liked_by(g.current_user)
+    # 通知这个评论的主人有新消息了
+    new_likes_count = comment.author.new_likes_count()
+    comment.author.add_notification(
+        'unread_likes_count',
+        new_likes_count
+    )
     db.session.add(comment)
     db.session.commit()
     return jsonify({
@@ -110,6 +121,12 @@ def unlike_comment(id):
     '''取消点赞'''
     comment = Comment.query.get_or_404(id)
     comment.unliked_by(g.current_user)
+    # 更新点赞消息
+    new_likes_count = comment.author.new_likes_count()
+    comment.author.add_notification(
+        'unread_likes_count',
+        new_likes_count
+    )
     db.session.add(comment)
     db.session.commit()
     return jsonify({
