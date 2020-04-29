@@ -48,7 +48,12 @@ class User(PaginatedAPIMixin, db.Model):
 
     notifications = db.relationship('Notification',backref='user',
         lazy='dynamic', cascade='all, delete-orphan')
+
+
     # 用户发送的私信
+    # （？）relationship指定foreign_keys的意义？ +
+    # 答：一般relationship会自动指定外键，但是这里和message有关的user有可能是发送者，也有可能是接收者，因此需要单独指定外键
+    # 参考https://docs.sqlalchemy.org/en/13/orm/relationship_api.html#sqlalchemy.orm.relationship
     messages_sent = db.relationship(
         'Message',
         backref='sender',
@@ -63,7 +68,7 @@ class User(PaginatedAPIMixin, db.Model):
         foreign_keys='Message.recipient_id',
         cascade='all,delete-orphan'
     )
-    #（？）这一段一致不理解 +
+    #（？）这一段一直不理解 +
     #   打印User对象的时候返回，比如print(User()) -> <User ly1>
     def __repr__(self):
         return '<User {}>'.format(self.username)
@@ -97,7 +102,7 @@ class User(PaginatedAPIMixin, db.Model):
         if include_email:
             data['email'] = self.email
         return data
-    #data是客户端传来的json数据
+    # data是客户端传来的json数据
     def from_dict(self,data,new_user=False):
         for field in ['username','email', 'name', 'location', 'about_me']:
             if field in data:

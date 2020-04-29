@@ -216,22 +216,7 @@ class User(PaginatedAPIMixin, db.Model):
         return recived_comment_count
     def new_follows(self):
         '''获取新粉丝总数'''
-        last_read_time = self.last_follows_read_time or datetime(1990,1,1)
-        # （？）这里要计算新粉丝总数，但是User类里面没有时间标签，怎么解决？ +
-        # 答：User类里面没有，中间表里面有啊
-        return self.followers.filter(
-            followers.c.timestamp > last_read_time
-        ).count()
-
-    def new_likes_count(self):
-        '''获取新点赞总数'''
-        last_read_time = self.last_likes_read_time or datetime(1990,1,1)
-        # 找到用户所有评论->筛选出被点赞的评论
-        c = self.comments.join(
-            comments_likes,
-            comments_likes.c.comment_id==Comment.id
-        ).filter(comments_likes.c.timestamp>last_read_time).count()
-        return c
+        
     def add_notification(self,name,data):
         '''
         name：通知类型
@@ -243,6 +228,8 @@ class User(PaginatedAPIMixin, db.Model):
         db.session.add(n)
         #（？）新增通知后应该返回什么？
         return n
+    def new_follows(self):
+        return self.followers.all()
 
 
 
