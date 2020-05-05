@@ -66,6 +66,7 @@ class User(PaginatedAPIMixin, db.Model):
         'Message',
         backref='recipient',
         foreign_keys='Message.recipient_id',
+        lazy='dynamic',
         cascade='all,delete-orphan'
     )
     #（？）这一段一直不理解 +

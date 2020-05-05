@@ -17,8 +17,8 @@ class Message(PaginatedAPIMixin,db.Model):
             'id':self.id,
             'body':self.body,
             'timestamp':self.timestamp,
-            'sender':self.sender_id,
-            'recipient':self.recipient_id,
+            'sender':self.sender.to_dict(),
+            'recipient':self.recipient.to_dict(),
             '_links':{
                 
             }

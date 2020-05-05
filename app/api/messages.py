@@ -42,23 +42,21 @@ def create_message():
     return jsonify(response)
 
 
-    
-    
-    
-        
-
-
-
 # 获取全部私信合集
 @bp.route('/messages/',methods=['GET'])
 def get_messages():
-    pass
+    msg = Message()
+    page = request.args.get('page',type=int,default=1)
+    per_page = request.args.get('per_page',type=int,default=current_app.config['MESSAGE_PER_PAGE'])
+    data = msg.to_collection_dict(Message.query.order_by(Message.timestamp.desc()),page,per_page,'/api.get_messages')
+    return jsonify(data)
 
 
 # 返回单个私信
 @bp.route('/messages/<int:id>',methods=['GET'])
 def get_message(id):
-    pass
+    response = Message.query.get_or_404(id)    
+    return jsonify(response.to_dict())
 
 
 # 修改单个私信

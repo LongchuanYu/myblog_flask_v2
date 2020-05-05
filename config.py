@@ -14,3 +14,4 @@ class Config(object):
     USERS_PER_PAGE = 10
     POSTS_PER_PAGE=10
     COMMENT_PER_PAGE=50
+    MESSAGE_PER_PAGE=20

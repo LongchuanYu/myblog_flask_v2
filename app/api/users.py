@@ -5,7 +5,7 @@ from app import db
 from app.api import bp
 from flask import request, jsonify, url_for, current_app, g
 from app.api.errors import bad_request, error_response
-from app.models import User, Post, Comment, Notification,comments_likes
+from app.models import User, Post, Comment, Notification,comments_likes,Message
 from app.api.auth import token_auth
 from sqlalchemy import or_,and_
 @bp.route('/users', methods=['POST'])
@@ -439,6 +439,67 @@ def get_user_notifications(id):
     )
     return jsonify([note.to_dict() for note in notes])
     
+
+
+
+
+
+
+# -------------------------------------------私信
+@bp.route('/users/<int:id>/messages-recipients/',methods=['GET'])
+@token_auth.login_required
+def get_user_messages_recipients(id):
+    '''当前用户给谁发了私信，返回这些用户'''
+    user = User.query.get_or_404(id)
+    page = request.args.get('page',type=int,default=1)
+    per_page=request.args.get('per_page',type=int) or 50
+    if g.current_user != user:
+        return error_response(403)
+    data = user.to_collection_dict(
+        user.messages_sent.group_by(Message.recipient_id).order_by(Message.timestamp.desc()),
+        page,per_page,'/api.get_user_messages_recipients',id=id
+    )
+
+    return jsonify(data)
+
+@bp.route('/users/<int:id>/messages-senders/',methods=['GET'])
+@token_auth.login_required
+def get_user_messages_senders(id):
+    '''哪些用户 给我 发送了私信'''
+    user = User.query.get_or_404(id)
+    page = request.args.get('page',type=int,default=1)
+    per_page=request.args.get('per_page',type=int) or 50
+    data = user.to_collection_dict(
+        user.messages_received.group_by(Message.sender_id).order_by(Message.timestamp.desc()),
+        page,per_page,'/api.get_user_messages_senders',id=id
+    )
+    return jsonify(data)
+
+@bp.route('/users/<int:id>/history-messages/',methods=['GET'])
+@token_auth.login_required
+def get_user_history_messages(id):
+    '''取得我和from用户之间的私信记录'''
+    user = User.query.get_or_404(id)
+    if g.current_user != user:
+        return bad_request(403)
+    page = request.args.get('page',1,type=int)
+    per_page = request.args.get('per_page',100,type=int)
+    from_id = request.args.get('from',type=int)
+    if not from_id:
+        return bad_request('from_id is None')
+    recived = user.messages_received.filter_by(sender_id=from_id)
+    sent = user.messages_sent.filter_by(recipient_id=from_id)
+    history_messages = recived.union(sent).order_by(Message.timestamp.desc())
+    data = user.to_collection_dict(
+        history_messages,
+        page,per_page,'/api.get_user_history_messages',id=id
+    )
+    return jsonify(data)
+
+
+
+
+
 @bp.route('/users/<int:id>/test',methods=['GET'])
 @token_auth.login_required
 def test(id):
