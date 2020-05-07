@@ -1,2 +1,16 @@
-ret = [1,2,3,4,5,6,7,8,9,10,11,12]
-print(ret[15:20])
+recd = [{
+    "sender":{
+        "id":1
+    }
+},{
+    "sender":{
+        "id":2
+    }
+},{
+    "sender":{"id":1}
+}]
+s = set()
+for r in recd:
+    s.add(r['sender'])
+
+z=1

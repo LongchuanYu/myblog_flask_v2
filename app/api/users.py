@@ -483,13 +483,13 @@ def get_user_history_messages(id):
     if g.current_user != user:
         return bad_request(403)
     page = request.args.get('page',1,type=int)
-    per_page = request.args.get('per_page',100,type=int)
+    per_page = request.args.get('per_page',10000,type=int)
     from_id = request.args.get('from',type=int)
     if not from_id:
         return bad_request('from_id is None')
     recived = user.messages_received.filter_by(sender_id=from_id)
     sent = user.messages_sent.filter_by(recipient_id=from_id)
-    history_messages = recived.union(sent).order_by(Message.timestamp.desc())
+    history_messages = recived.union(sent).order_by(Message.timestamp)
     data = user.to_collection_dict(
         history_messages,
         page,per_page,'/api.get_user_history_messages',id=id
@@ -497,8 +497,34 @@ def get_user_history_messages(id):
     return jsonify(data)
 
 
+@bp.route('/users/<int:id>/messages-all/',methods=['GET'])
+@token_auth.login_required
+def get_user_message_all(id):
+    '''查询我发送的和我收到的用户'''
+    user = User.query.get_or_404(id)
+    if g.current_user!=user:
+        return bad_request(403)
+    page = request.args.get('page',1,type=int)
+    per_page = request.args.get('per_page',100,type=int)
+    recieved = user.messages_received.group_by(Message.sender_id)
 
+    sent = user.messages_sent.group_by(Message.recipient_id)
 
+    all = recieved.union(sent).order_by(Message.timestamp.desc()).all()
+    st = set()
+    for al in all:
+        if al.sender==g.current_user:
+            st.add(al.recipient)
+        elif al.recipient == g.current_user:
+            st.add(al.sender)
+    result = []
+    for s in list(st):
+        result.append(s.to_dict())
+
+    data = {
+        "items":result
+    }
+    return jsonify(data)
 
 @bp.route('/users/<int:id>/test',methods=['GET'])
 @token_auth.login_required
