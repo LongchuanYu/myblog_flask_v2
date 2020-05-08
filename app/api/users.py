@@ -8,6 +8,7 @@ from app.api.errors import bad_request, error_response
 from app.models import User, Post, Comment, Notification,comments_likes,Message
 from app.api.auth import token_auth
 from sqlalchemy import or_,and_
+from app.utils.email import send_email
 @bp.route('/users', methods=['POST'])
 def create_user():
     # 注册
@@ -29,11 +30,40 @@ def create_user():
         message['email'] = 'please use a different email.'
     if message:
         return bad_request(message)
+    
+    
     user = User()
     # 这里在实例user中添加了username和email属性
     user.from_dict(data, new_user=True)
     db.session.add(user)
     db.session.commit()
+
+    # send confirm email
+    token = user.generate_confirm_jwt()
+    if not data.get('confirm_email_base_url'):
+        confirm_url = current_app.config['CONFIRM_URL'] + token
+    else:
+        confirm_url = data.get('confirm_email_base_url') + token
+    text_body = '''
+    您好，{} ~
+    欢迎注册！
+    '''.format(user.username,confirm_url)
+    html_body = '''
+    <p>您好，{0}</p>
+    <p>欢迎注册我的博客！大家一起来分享技术，畅谈人生~</p>
+    <p></p>
+    <p>请点击<a href="{1}">这里</a>确认您的账户</p>
+    <p>或者把下面的链接粘贴到浏览器打开：</p>
+    <p>{1}</p>
+    '''.format(user.username,confirm_url)
+    send_email(
+        '邮件地址确认',
+        sender=current_app.config['MAIL_SENDER'],
+        recipients=[user.email],
+        text_body=text_body,
+        html_body=html_body
+    )
+
     # to_dict()返回一个字典
     response = jsonify(user.to_dict())
     response.status_code = 201
@@ -534,3 +564,66 @@ def test(id):
     return jsonify({
         'rel':'1'
     })
+
+
+
+
+#  ----------------------邮箱验证
+# （？）路由传token
+@bp.route('/confirm/<token>', methods=['GET'])
+@token_auth.login_required
+def confirm(token):
+    '''用户收到验证邮件后，验证其账户'''
+    if g.current_user.confirmed:
+        return bad_request('您已经验证过邮箱了.')
+    if g.current_user.verify_confirm_jwt(token):
+        g.current_user.ping()
+        db.session.commit()
+        # 给用户发放新 JWT，因为要包含 confirmed: true
+        token = g.current_user.get_jwt()
+        return jsonify({
+            'status': 'success',
+            'message': '验证成功!',
+            'token': token
+        })
+    else:
+        return bad_request('验证失败，有可能链接过期了.')
+
+
+@bp.route('/resend-confirm', methods=['POST'])
+@token_auth.login_required
+def resend_confirmation():
+    '''重新发送确认账户的邮件'''
+    data = request.get_json()
+    if not data:
+        return bad_request('You must post JSON data.')
+    if 'confirm_email_base_url' not in data or not data.get('confirm_email_base_url').strip():
+        return bad_request('Please provide a valid confirm email base url.')
+
+    token = g.current_user.generate_confirm_jwt()
+
+
+
+    text_body = '''
+    您好，{} ~
+    欢迎注册！
+    '''.format(g.current_user.username)
+    html_body = '''
+    <p>您好，{0}</p>
+    <p>欢迎注册我的博客！大家一起来分享技术，畅谈人生~</p>
+    <p></p>
+    <p>请点击<a href="{1}">这里</a>确认您的账户</p>
+    <p>或者把下面的链接粘贴到浏览器打开：</p>
+    <p>{1}</p>
+    '''.format(g.current_user.username,data.get('confirm_email_base_url') + token)
+
+    send_email('邮件地址确认',
+               sender=current_app.config['MAIL_SENDER'],
+               recipients=[g.current_user.email],
+               text_body=text_body,
+               html_body=html_body)
+    return jsonify({
+        'status': 'success',
+        'message': '邮件已重新发送.'
+    })
+

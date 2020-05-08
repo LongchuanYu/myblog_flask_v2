@@ -18,8 +18,11 @@ class Config(object):
 
     # Mail Config
     MAIL_SERVER = 'smtp.qq.com'
-    MAIL_PORT = 456
-    MAIL_USE_SSL = 1
+    MAIL_PORT = 465
+    MAIL_USE_SSL = True
     MAIL_USERNAME = 'remly@qq.com'
     MAIL_PASSWORD = 'daubnxncwmlcbaif'
-    MAIL_SENDER = 'Admin<admin@qq.com>'
+    MAIL_SENDER = 'remly@qq.com'
+
+    # Others
+    CONFIRM_URL = 'http://127.0.0.1:5000/api/confirm/'

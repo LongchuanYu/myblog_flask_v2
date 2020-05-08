@@ -1,5 +1,7 @@
 from app.models.base import *
 from app.models.exts import Post,Comment,comments_likes,Notification
+LOGIN_EXPIRES_IN = 28800
+MAIL_EXPIRES_IN = 28800
 followers = db.Table(
     'followers',
     db.Column('follower_id',db.Integer,db.ForeignKey('users.id')), #我关注了谁？
@@ -49,7 +51,9 @@ class User(PaginatedAPIMixin, db.Model):
     notifications = db.relationship('Notification',backref='user',
         lazy='dynamic', cascade='all, delete-orphan')
 
-
+    # 用户是否已确认邮箱
+    confirmed = db.Column(db.Boolean, default=False)
+ 
     # 用户发送的私信
     # （？）relationship指定foreign_keys的意义？ +
     # 答：一般relationship会自动指定外键，但是这里和message有关的user有可能是发送者，也有可能是接收者，因此需要单独指定外键
@@ -115,9 +119,10 @@ class User(PaginatedAPIMixin, db.Model):
                 setattr(self,field,data[field])
         if new_user and 'password' in data:
             self.set_password(data['password'])
-    def get_jwt(self,expires_in=28800):
+    def get_jwt(self,expires_in=LOGIN_EXPIRES_IN):
         now = datetime.utcnow()
         payload = {
+            'confirmed': self.confirmed,
             'user_id':self.id,
             'user_name':self.name if self.name else self.username,
             'user_avatar':base64.b64encode(self.avatar(24).encode('utf-8')).decode('utf-8'),
@@ -143,7 +148,58 @@ class User(PaginatedAPIMixin, db.Model):
             print(e)
             return None
         return User.query.get(payload.get('user_id'))
-    
+
+    def generate_confirm_jwt(self,expires_in=MAIL_EXPIRES_IN):
+        now = datetime.utcnow()
+        payload = {
+            'confirm':self.id,
+            'exp':now+timedelta(seconds=expires_in),
+            'iat':now
+        }
+        return jwt.encode(
+            payload,
+            current_app.config['SECRET_KEY'],
+            algorithm='HS256'
+        ).decode('utf-8')
+
+    def verify_confirm_jwt(self,token):
+        '''验证用户是否点击邮件，通过JWT检验'''
+        try:
+            payload = jwt.decode(
+                token,
+                current_app.config['SECRET_KEY'],
+                algorithms='HS256'
+            )
+        except (jwt.exceptions.ExpiredSignatureError,
+                jwt.exceptions.InvalidSignatureError,
+                jwt.exceptions.DecodeError) as e:
+                return False
+        if payload.get('confirm') != self.id:
+            return False
+        self.confirmed = True
+        db.session.add(self)
+        return True
+
+
+    def verify_confirm_jwt(self, token):
+            '''用户点击确认邮件中的URL后，需要检验 JWT，如果检验通过，则把新添加的 confirmed 属性设为 True'''
+            try:
+                payload = jwt.decode(
+                    token,
+                    current_app.config['SECRET_KEY'],
+                    algorithms=['HS256'])
+            except (jwt.exceptions.ExpiredSignatureError,
+                    jwt.exceptions.InvalidSignatureError,
+                    jwt.exceptions.DecodeError) as e:
+                # Token过期，或被人修改，那么签名验证也会失败
+                return False
+            if payload.get('confirm') != self.id:
+                return False
+            self.confirmed = True
+            db.session.add(self)
+            return True
+
+
     #（？）这个“avatar”是一个方法，也没有用Property装饰器修饰，如果别的地方要用到这个avatar的url怎么办？ +
     # 答：avatar只要有email地址就有一个专属的头像，所以别的地方要用的话就调用这个方法返回头像地址，怎么都不会变的
     def avatar(self,size):
