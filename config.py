@@ -15,3 +15,11 @@ class Config(object):
     POSTS_PER_PAGE=10
     COMMENT_PER_PAGE=50
     MESSAGE_PER_PAGE=20
+
+    # Mail Config
+    MAIL_SERVER = 'smtp.qq.com'
+    MAIL_PORT = 456
+    MAIL_USE_SSL = 1
+    MAIL_USERNAME = 'remly@qq.com'
+    MAIL_PASSWORD = 'daubnxncwmlcbaif'
+    MAIL_SENDER = 'Admin<admin@qq.com>'
