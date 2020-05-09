@@ -47,7 +47,7 @@ def create_user():
     text_body = '''
     您好，{} ~
     欢迎注册！
-    '''.format(user.username,confirm_url)
+    '''.format(user.username)
     html_body = '''
     <p>您好，{0}</p>
     <p>欢迎注册我的博客！大家一起来分享技术，畅谈人生~</p>
