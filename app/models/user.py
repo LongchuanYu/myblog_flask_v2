@@ -1,5 +1,5 @@
 from app.models.base import *
-from app.models.exts import Post,Comment,comments_likes,Notification
+from app.models.exts import Post,Comment,comments_likes,Notification,Permmission
 LOGIN_EXPIRES_IN = 28800
 MAIL_EXPIRES_IN = 28800
 followers = db.Table(
@@ -73,6 +73,9 @@ class User(PaginatedAPIMixin, db.Model):
         lazy='dynamic',
         cascade='all,delete-orphan'
     )
+
+    role_id = db.Column(db.Integer,db.ForeignKey('roles.id'))
+
     #（？）这一段一直不理解 +
     #   打印User对象的时候返回，比如print(User()) -> <User ly1>
     def __repr__(self):
@@ -119,6 +122,12 @@ class User(PaginatedAPIMixin, db.Model):
                 setattr(self,field,data[field])
         if new_user and 'password' in data:
             self.set_password(data['password'])
+            # 新建用户时，给用户自动分配角色
+            if self.role is None:
+                if self.email in current_app.config['ADMINS']:
+                    self.role = Role.query.filter_by(slug='administrator').first()
+                else:
+                    self.role = Role.query.filter_by(default=True).first()
     def get_jwt(self,expires_in=LOGIN_EXPIRES_IN):
         now = datetime.utcnow()
         payload = {
@@ -162,25 +171,6 @@ class User(PaginatedAPIMixin, db.Model):
             algorithm='HS256'
         ).decode('utf-8')
 
-    def verify_confirm_jwt(self,token):
-        '''验证用户是否点击邮件，通过JWT检验'''
-        try:
-            payload = jwt.decode(
-                token,
-                current_app.config['SECRET_KEY'],
-                algorithms='HS256'
-            )
-        except (jwt.exceptions.ExpiredSignatureError,
-                jwt.exceptions.InvalidSignatureError,
-                jwt.exceptions.DecodeError) as e:
-                return False
-        if payload.get('confirm') != self.id:
-            return False
-        self.confirmed = True
-        db.session.add(self)
-        return True
-
-
     def verify_confirm_jwt(self, token):
             '''用户点击确认邮件中的URL后，需要检验 JWT，如果检验通过，则把新添加的 confirmed 属性设为 True'''
             try:
@@ -198,6 +188,7 @@ class User(PaginatedAPIMixin, db.Model):
             self.confirmed = True
             db.session.add(self)
             return True
+
 
 
     #（？）这个“avatar”是一个方法，也没有用Property装饰器修饰，如果别的地方要用到这个avatar的url怎么办？ +
@@ -291,3 +282,14 @@ class User(PaginatedAPIMixin, db.Model):
         db.session.add(n)
         #（？）新增通知后应该返回什么？
         return n
+
+
+
+# 权限 --------------
+    def can(self,perm):
+        '''检查该用户是否有perm的权限'''
+        return self.role is not None and self.role.has_permission(perm)
+    
+    def is_administrator(self):
+        '''检查该用户是否有ADMIN的权限'''
+        return self.can(Permmission.ADMIN)

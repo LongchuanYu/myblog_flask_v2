@@ -1,8 +1,8 @@
-"""init
+"""mail
 
-Revision ID: a5217ad041ff
+Revision ID: 1a698ad36c9f
 Revises: 
-Create Date: 2020-01-08 18:11:41.898147
+Create Date: 2020-05-10 11:41:55.220751
 
 """
 from alembic import op
@@ -10,7 +10,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision = 'a5217ad041ff'
+revision = '1a698ad36c9f'
 down_revision = None
 branch_labels = None
 depends_on = None
@@ -28,6 +28,11 @@ def upgrade():
     sa.Column('about_me', sa.Text(), nullable=True),
     sa.Column('member_since', sa.DateTime(), nullable=True),
     sa.Column('last_seen', sa.DateTime(), nullable=True),
+    sa.Column('last_recived_comments_read_time', sa.DateTime(), nullable=True),
+    sa.Column('last_follows_read_time', sa.DateTime(), nullable=True),
+    sa.Column('last_likes_read_time', sa.DateTime(), nullable=True),
+    sa.Column('last_messages_read_time', sa.DateTime(), nullable=True),
+    sa.Column('confirmed', sa.Boolean(), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
@@ -39,6 +44,28 @@ def upgrade():
     sa.ForeignKeyConstraint(['followed_id'], ['users.id'], ),
     sa.ForeignKeyConstraint(['follower_id'], ['users.id'], )
     )
+    op.create_table('messages',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('body', sa.Text(), nullable=True),
+    sa.Column('timestamp', sa.DateTime(), nullable=True),
+    sa.Column('sender_id', sa.Integer(), nullable=True),
+    sa.Column('recipient_id', sa.Integer(), nullable=True),
+    sa.ForeignKeyConstraint(['recipient_id'], ['users.id'], ),
+    sa.ForeignKeyConstraint(['sender_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_messages_timestamp'), 'messages', ['timestamp'], unique=False)
+    op.create_table('notifications',
+    sa.Column('id', sa.Integer(), nullable=False),
+    sa.Column('name', sa.String(length=128), nullable=True),
+    sa.Column('user_id', sa.Integer(), nullable=True),
+    sa.Column('timestamp', sa.Float(), nullable=True),
+    sa.Column('payload_json', sa.Text(), nullable=True),
+    sa.ForeignKeyConstraint(['user_id'], ['users.id'], ),
+    sa.PrimaryKeyConstraint('id')
+    )
+    op.create_index(op.f('ix_notifications_name'), 'notifications', ['name'], unique=False)
+    op.create_index(op.f('ix_notifications_timestamp'), 'notifications', ['timestamp'], unique=False)
     op.create_table('posts',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('title', sa.String(length=255), nullable=True),
@@ -83,6 +110,11 @@ def downgrade():
     op.drop_table('comments')
     op.drop_index(op.f('ix_posts_timestamp'), table_name='posts')
     op.drop_table('posts')
+    op.drop_index(op.f('ix_notifications_timestamp'), table_name='notifications')
+    op.drop_index(op.f('ix_notifications_name'), table_name='notifications')
+    op.drop_table('notifications')
+    op.drop_index(op.f('ix_messages_timestamp'), table_name='messages')
+    op.drop_table('messages')
     op.drop_table('followers')
     op.drop_index(op.f('ix_users_username'), table_name='users')
     op.drop_index(op.f('ix_users_email'), table_name='users')

@@ -17,6 +17,7 @@ class Config(object):
     MESSAGE_PER_PAGE=20
 
     # Mail Config
+    ADMINS = ['remly@qq.com']  # 管理员的邮箱地址
     MAIL_SERVER = 'smtp.qq.com'
     MAIL_PORT = 465
     MAIL_USE_SSL = True
