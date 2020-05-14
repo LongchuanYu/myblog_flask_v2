@@ -4,6 +4,7 @@ from app.models.exts import Post,Comment,comments_likes,Notification
 class Permission:
     FOLLOW = 0x01
     COMMENT = 0x02
+    WRITE = 0x04
     ADMIN = 0x80
 
 

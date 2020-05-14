@@ -1,5 +1,5 @@
 from app.models.base import *
-from app.models.exts import Post,Comment,comments_likes,Notification,Permmission
+from app.models.exts import Post,Comment,comments_likes,Notification,Permmission,Role
 LOGIN_EXPIRES_IN = 28800
 MAIL_EXPIRES_IN = 28800
 followers = db.Table(
