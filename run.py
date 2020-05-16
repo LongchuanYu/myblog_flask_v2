@@ -1,5 +1,5 @@
 from app import create_app,db
-from app.models import User
+from app.models import User,Role
 from config import Config
 app = create_app(Config)
 
@@ -19,7 +19,8 @@ def test():
 def make_shell_context():
     return {
         'db':db,
-        'User':User
+        'User':User,
+        'Role':Role
     }
 if __name__=='__main__':
     app.run(debug=True)

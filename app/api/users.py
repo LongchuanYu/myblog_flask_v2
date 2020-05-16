@@ -38,6 +38,8 @@ def create_user():
     db.session.add(user)
     db.session.commit()
 
+
+    test = user.role
     # send confirm email
     token = user.generate_confirm_jwt()
     if not data.get('confirm_email_base_url'):

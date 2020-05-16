@@ -1,5 +1,17 @@
 from app.models.base import *
-from app.models.exts import Post,Comment,comments_likes,Notification,Permmission,Role
+'''（？）ImportError: cannot import name 'Role' from 'app.models.exts' 原因分析 +
+我们来看app.models.exts的情况：
+1. from app.models.post import Post  
+2. from app.models.notification import Notification
+3. from app.models.comment import Comment,comments_likes
+4. from app.models.user import User,followers
+5. from app.models.permission import Role,Permission
+6. from app.models.message import Message
+
+对比下面这句代码发现导入1、2、3都没有问题，直到4：从user.py里面import自己，很容易造成循环导入
+因此，我们调整一下4、5的位置即可
+'''
+from app.models.exts import Post,Comment,comments_likes,Notification,Role,Permission
 LOGIN_EXPIRES_IN = 28800
 MAIL_EXPIRES_IN = 28800
 followers = db.Table(
@@ -128,6 +140,8 @@ class User(PaginatedAPIMixin, db.Model):
                     self.role = Role.query.filter_by(slug='administrator').first()
                 else:
                     self.role = Role.query.filter_by(default=True).first()
+                    test = self.role
+                    z=1
     def get_jwt(self,expires_in=LOGIN_EXPIRES_IN):
         now = datetime.utcnow()
         payload = {
@@ -135,6 +149,7 @@ class User(PaginatedAPIMixin, db.Model):
             'user_id':self.id,
             'user_name':self.name if self.name else self.username,
             'user_avatar':base64.b64encode(self.avatar(24).encode('utf-8')).decode('utf-8'),
+            'permissions': self.role.get_permissions(),
             'exp':now+timedelta(seconds=expires_in),
             'iat':now
         }
@@ -292,4 +307,4 @@ class User(PaginatedAPIMixin, db.Model):
     
     def is_administrator(self):
         '''检查该用户是否有ADMIN的权限'''
-        return self.can(Permmission.ADMIN)
+        return self.can(Permission.ADMIN)

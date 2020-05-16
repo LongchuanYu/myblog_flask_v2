@@ -1,13 +1,14 @@
 from app import db
-from app.models import Post,Comment
+from app.models import Post,Comment,Permission
 from app.api import bp
 from app.api.errors import bad_request,error_response
 from app.api.auth import token_auth
-
+from app.utils.decorator import permission_required 
 from flask import request,jsonify,g,current_app
 
 @bp.route('/posts',methods=['POST'])
 @token_auth.login_required
+@permission_required(Permission.WRITE)
 def create_post():
     '''创建单个post'''
     data = request.get_json()

@@ -1,5 +1,4 @@
 from app.models.base import *
-from app.models.exts import Post,Comment,comments_likes,Notification
 
 class Permission:
     FOLLOW = 0x01
@@ -53,6 +52,12 @@ class Role(PaginatedAPIMixin,db.Model):
             db.session.add(role)
         db.session.commit()
 
+    def get_permissions(self):
+        '''获取角色的具体操作权限列表'''
+        p = [(Permission.FOLLOW, 'follow'), (Permission.COMMENT, 'comment'), (Permission.WRITE, 'write'), (Permission.ADMIN, 'admin')]
+        # 过滤掉没有权限，注意不能用 for 循环，因为遍历列表时删除元素可能结果并不是你想要的，参考: https://segmentfault.com/a/1190000007214571
+        new_p = filter(lambda x: self.has_permission(x[0]), p)
+        return ','.join([x[1] for x in new_p])  # 用逗号拼接成str
 
 
     def reset_permissions(self):
@@ -84,4 +89,5 @@ class Role(PaginatedAPIMixin,db.Model):
 
     def __repr__(self):
         return '<Role {}>'.format(self.name)
+
 
