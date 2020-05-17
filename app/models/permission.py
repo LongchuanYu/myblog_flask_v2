@@ -91,3 +91,21 @@ class Role(PaginatedAPIMixin,db.Model):
         return '<Role {}>'.format(self.name)
 
 
+    def to_dict(self):
+        data = {
+            'id': self.id,
+            'slug': self.slug,
+            'name': self.name,
+            'default': self.default,
+            'permissions': self.permissions,
+            '_links': {
+                'self': url_for('/api.get_roles', id=self.id)
+            }
+        }
+        return data
+
+    def from_dict(self, data):
+        for field in ['slug', 'name', 'permissions']:
+            if field in data:
+                setattr(self, field, data[field])
+

@@ -1,3 +1,4 @@
+# -*- coding:utf8 -*- 
 from app import create_app,db
 from app.models import User,Role
 from config import Config
@@ -23,4 +24,4 @@ def make_shell_context():
         'Role':Role
     }
 if __name__=='__main__':
-    app.run(debug=True)
+    app.run(debug=True,host='0.0.0.0')

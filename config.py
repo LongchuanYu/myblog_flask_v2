@@ -27,3 +27,8 @@ class Config(object):
 
     # Others
     CONFIRM_URL = 'http://127.0.0.1:5000/api/confirm/'
+
+
+    # Redis
+    REDIS_URL = 'redis://'
+    
