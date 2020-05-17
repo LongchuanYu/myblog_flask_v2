@@ -34,7 +34,7 @@ def send_messages(*args,**kwargs):
             你好，
             这是liyang的博客管理团队发出的群邮件
             '''
-            html_email = '''
+            html_body = '''
             <p>你好 {0},</p>
             <p>{1}</p>
             <p> ----来自于Admin的邮件</p>
