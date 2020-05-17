@@ -11,7 +11,7 @@ from app.models.base import *
 对比下面这句代码发现导入1、2、3都没有问题，直到4：从user.py里面import自己，很容易造成循环导入
 因此，我们调整一下4、5的位置即可
 '''
-from app.models.exts import Post,Comment,comments_likes,Notification,Role,Permission
+from app.models.exts import Post,Comment,comments_likes,Notification,Role,Permission,Task
 LOGIN_EXPIRES_IN = 28800
 MAIL_EXPIRES_IN = 28800
 followers = db.Table(
@@ -85,6 +85,10 @@ class User(PaginatedAPIMixin, db.Model):
         lazy='dynamic',
         cascade='all,delete-orphan'
     )
+
+    # rq queue
+    tasks = db.relationship('Task', backref='user', lazy='dynamic')
+
 
     role_id = db.Column(db.Integer,db.ForeignKey('roles.id'))
 
@@ -308,3 +312,17 @@ class User(PaginatedAPIMixin, db.Model):
     def is_administrator(self):
         '''检查该用户是否有ADMIN的权限'''
         return self.can(Permission.ADMIN)
+
+
+
+# RQ队列---------------
+    def get_task_in_progress(self, name):
+        '''检查指定任务名的RQ任务是否还在运行中'''
+        return Task.query.filter_by(name=name, user=self, complete=False).first()
+
+    def launch_task(self, name, description, *args, **kwargs):
+        '''用户启动一个新的后台任务'''
+        rq_job = current_app.task_queue.enqueue('app.utils.tasks.' + name, *args, **kwargs)
+        task = Task(id=rq_job.get_id(), name=name, description=description, user=self)
+        db.session.add(task)
+        return task

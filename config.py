@@ -26,7 +26,7 @@ class Config(object):
     MAIL_SENDER = 'remly@qq.com'
 
     # Others
-    CONFIRM_URL = 'http://127.0.0.1:5000/api/confirm/'
+    CONFIRM_URL = 'http://192.168.31.57:5000/api/confirm/'
 
 
     # Redis
