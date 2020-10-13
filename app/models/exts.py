@@ -1,3 +1,4 @@
+# -*- coding: utf-8
 
 from app.models.post import Post
 from app.models.notification import Notification

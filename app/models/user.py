@@ -1,3 +1,4 @@
+# -*- coding: utf-8
 from app.models.base import *
 '''（？）ImportError: cannot import name 'Role' from 'app.models.exts' 原因分析 +
 我们来看app.models.exts的情况：

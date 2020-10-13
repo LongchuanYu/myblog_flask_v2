@@ -1,4 +1,4 @@
-
+# -*- coding: utf-8
 #这是一个蓝图
 from flask import Blueprint
 bp = Blueprint('/api',__name__)

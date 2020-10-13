@@ -1,3 +1,4 @@
+# -*- coding: utf-8
 import time,sys
 from rq import get_current_job
 from app import create_app,db

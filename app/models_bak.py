@@ -1,3 +1,4 @@
+# -*- coding: utf-8
 import base64,os,jwt,json
 from app import db
 from hashlib import md5

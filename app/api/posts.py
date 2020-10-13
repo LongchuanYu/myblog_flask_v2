@@ -1,3 +1,4 @@
+# -*- coding: utf-8
 from app import db
 from app.models import Post,Comment,Permission
 from app.api import bp

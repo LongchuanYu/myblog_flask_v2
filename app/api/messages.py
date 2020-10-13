@@ -1,3 +1,4 @@
+# -*- coding: utf-8
 from flask import request,jsonify,url_for,g,current_app
 from app import db
 from app.api import bp

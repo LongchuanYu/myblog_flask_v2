@@ -1,3 +1,4 @@
+# -*- coding: utf-8
 import re,math
 from operator import itemgetter
 from datetime import datetime

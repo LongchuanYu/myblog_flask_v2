@@ -1,3 +1,4 @@
+# -*- coding: utf-8
 from flask import request, url_for, jsonify
 from app.api import bp
 from app.api.auth import token_auth

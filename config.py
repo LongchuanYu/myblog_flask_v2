@@ -1,3 +1,4 @@
+# -*- coding: utf-8
 import os
 #__file__:
 #   命令行运行python config.py则只获得文件名+后缀

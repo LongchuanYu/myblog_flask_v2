@@ -1,3 +1,4 @@
+# -*- coding: utf-8
 from flask import g,current_app
 from flask_mail import Message
 from threading import Thread

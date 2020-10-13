@@ -1,3 +1,5 @@
+# -*- coding: utf-8
+# -*- coding: utf-8 
 from app.models.base import *
 class Notification(db.Model):  # 不需要分页
     __tablename__ = 'notifications'

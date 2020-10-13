@@ -1,3 +1,4 @@
+# -*- coding: utf-8
 from app.models.base import *
 comments_likes = db.Table(
     'comments_likes',
